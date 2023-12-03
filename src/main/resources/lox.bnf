@@ -1,11 +1,22 @@
-expression  → literal
-            | unary
-            | binary
-            | grouping ;
+; separate rules for each precedence level
+; From Lowest to Highest Precedence
 
-literal     → NUMBER | STRING | "true" | "false" | "nil" ;
-grouping    → "(" expression ")" ;
-unary       → ( "-" | "!" ) expression ;
-binary      → expression operator expression
-operator    → "==" | "!=" | "<" | ">" | "<=" | ">="
-            | "+"  | "-"  | "*" | "/" ;
+// each rule needs to match expressions at that precedence level
+// or higher
+//
+// Grammar Notation    Code Representation
+// Terminal            Code to match & consume a token
+// Non-Terminal        Call to that rule's function
+// |                   if or switch statement
+// * or +              while or for loop
+// ?                   if statement
+
+expression  → equality ;
+equality    → comparison ( ( "!=" | "==" ) comparison)* ;
+comparison  → term ( ( "<" | ">" | "<=" | ">=" ) term)* ;
+term        → factor ( ( "+"  | "-"  | "*" | "/" ) factor)* ;
+factor      → unary ( ( "/" | "*") unary)* ;
+unary       → ( "!" | "-") unary
+            | primary
+primary     → NUMBER | STRING | "true" | "false" | "nil"
+            | "(" expression ")" ;

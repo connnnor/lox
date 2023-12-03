@@ -9,10 +9,13 @@ import java.nio.file.Paths;
 import java.util.List;
 
 public class Lox {
+    private static final Interpreter interpreter = new Interpreter();
     static boolean hadError = false;
+    static boolean hadRuntimeError = false;
 
     static final int ARG_ERR = 64;
     static final int SCAN_ERR = 65;
+    static final int RUNTIME_ERR = 70;
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
@@ -29,9 +32,9 @@ public class Lox {
         byte[] bytes = Files.readAllBytes(Paths.get(path));
         run(new String(bytes, Charset.defaultCharset()));
 
-        if (hadError) {
-            System.exit(SCAN_ERR);
-        }
+        // Indicate error in exit code
+        if (hadError) { System.exit(SCAN_ERR); }
+        if (hadRuntimeError) { System.exit(RUNTIME_ERR); }
     }
 
     private static void runPrompt() throws IOException {
@@ -55,7 +58,8 @@ public class Lox {
 
         if (hadError) { return; }
 
-        System.out.println(new AstPrinter().print(expression));
+        interpreter.interpret(expression);
+        //System.out.println(new AstPrinter().print(expression));
     }
 
     static void error(int line, String message) {
@@ -77,5 +81,10 @@ public class Lox {
         sb.append("Error").append(where).append(": ").append(message);
         System.err.println(sb.toString());
         hadError = true;
+    }
+
+    public static void runtimeError(RuntimeError error) {
+        System.err.println(error.getMessage() + "\n[line" + error.token.line + "]");
+        hadRuntimeError = true;
     }
 }
