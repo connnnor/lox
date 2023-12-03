@@ -163,7 +163,7 @@ public class Parser {
         if (match(NIL)) { return new Expr.Literal(null); }
 
         if (match(NUMBER, STRING)) {
-            return new Expr.Literal(previous());
+            return new Expr.Literal(previous().literal);
         }
 
         if (match(LEFT_PAREN)) {

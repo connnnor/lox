@@ -96,6 +96,9 @@ public class Scanner {
             case '\n':
                 line++;
                 break;
+            case '"':
+                string();
+                break;
             default:
                 if (isDigit(c)) {
                     number();
