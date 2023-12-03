@@ -20,3 +20,13 @@ unary       → ( "!" | "-") unary
             | primary
 primary     → NUMBER | STRING | "true" | "false" | "nil"
             | "(" expression ")" ;
+
+// Top Level Grammar
+
+program     → statement* EOF ;
+
+statement   → exprStmt
+            | printStmt ;
+
+exprStmt    → expression ";" ;
+printStmt   → "print" expression ";" ;
