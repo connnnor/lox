@@ -36,8 +36,8 @@ public class Interpreter implements Expr.Visitor<Object> {
 
     @Override
     public Object visitBinaryExpr(Expr.Binary expr) {
-        Object left = expr.left;
-        Object right = expr.right;
+        Object left = evaluate(expr.left);
+        Object right = evaluate(expr.right);
         switch(expr.operator.type) {
             /* Comparison Operators */
             case GREATER:
@@ -111,11 +111,12 @@ public class Interpreter implements Expr.Visitor<Object> {
 
     @Override
     public Object visitUnaryExpr(Expr.Unary expr) {
-        Object right = expr.right;
+        Object right = evaluate(expr.right);
         switch(expr.operator.type) {
             case BANG:
                 return !isTruthy(right);
             case MINUS:
+                checkNumberOperand(expr.operator, right);
                 return -(double) right;
         }
         // unreachable
