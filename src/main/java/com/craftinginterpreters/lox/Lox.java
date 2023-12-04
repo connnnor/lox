@@ -9,6 +9,10 @@ import java.nio.file.Paths;
 import java.util.List;
 
 public class Lox {
+    public Lox() {
+
+    }
+
     private static final Interpreter interpreter = new Interpreter();
     static boolean hadError = false;
     static boolean hadRuntimeError = false;
