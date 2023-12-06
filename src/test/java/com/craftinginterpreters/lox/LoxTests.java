@@ -1,6 +1,7 @@
 package com.craftinginterpreters.lox;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -35,6 +36,13 @@ class LoxTests {
         return !isScript(s);
     }
 
+    @BeforeEach
+    void init() {
+        Lox.hadError = false;
+    }
+
+
+
     /**
      * Test runner for scripts.
      *
@@ -43,16 +51,20 @@ class LoxTests {
      * @param script Lox source text
      */
     private String runner(String script) {
-        PrintStream old = System.out;
+        PrintStream oldOut = System.out;
+        PrintStream oldErr = System.err;
         ByteArrayOutputStream os = new ByteArrayOutputStream();
         try {
             System.setOut(new PrintStream(os));
+            System.setErr(new PrintStream(os));
             Lox.run(script);
             System.out.flush();
+            System.err.flush();
             return os.toString();
         } finally {
             // restore System.out
-            System.setOut(old);
+            System.setOut(oldOut);
+            System.setErr(oldErr);
         }
     }
 
@@ -66,6 +78,16 @@ class LoxTests {
         final String msg = "running test script\n" + script;
         if (expected != null) {
             Assertions.assertEquals(expected.trim(), actual.trim(), msg);
+        }
+    }
+
+    private void runAndComparePattern(String script, String expected) {
+        final String actual = runner(script);
+        final String msg = "running test script\n" + script;
+        if (expected != null) {
+            Assertions.assertTrue(actual.trim().matches(expected),
+                    "Actual string '" + actual +
+                    "' does not match expected '" + expected + "'.");
         }
     }
 
@@ -283,5 +305,28 @@ class LoxTests {
             global
             global
             """);
+    }
+
+    @Test
+    void redefinitionErrTest() {
+        final String script = """
+            fun bad() {
+              var a = "first";
+              var a = "second";
+            }
+            """;
+
+        runAndComparePattern(script, "(.*)Error(.*)Already a variable with this name(.*)");
+//        Lox.hadError = false;
+    }
+
+    @Test
+    void returnErrTest() {
+        final String script = """
+            return "at top level";
+            """;
+
+        runAndComparePattern(script, "(.*)Error(.*)Can't return from top-level code(.*)");
+//        Lox.hadError = false;
     }
 }
