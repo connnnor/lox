@@ -16,10 +16,6 @@ class LoxTests {
         return s;
     }
 
-    private static boolean isScript(String s) {
-        return s.startsWith("> ");
-    }
-
     private static boolean isStart(String s) {
         return s.startsWith(">>>");
     }
@@ -32,20 +28,13 @@ class LoxTests {
         return !(isStart(s) || isContinuation(s));
     }
 
-    private static boolean isExpectedVal(String s) {
-        return !isScript(s);
-    }
-
     @BeforeEach
     void init() {
         Lox.hadError = false;
     }
 
-
-
     /**
      * Test runner for scripts.
-     *
      * Redirect system out into variable.
      *
      * @param script Lox source text
@@ -83,9 +72,8 @@ class LoxTests {
 
     private void runAndComparePattern(String script, String expected) {
         final String actual = runner(script);
-        final String msg = "running test script\n" + script;
         if (expected != null) {
-            Assertions.assertTrue(actual.trim().matches(expected),
+            Assertions.assertTrue(actual.strip().matches(expected),
                     "Actual string '" + actual +
                     "' does not match expected '" + expected + "'.");
         }
@@ -248,6 +236,24 @@ class LoxTests {
     }
 
     @Test
+    void mutualRecursiveFuncTest() {
+        runDocTest("""
+            >>> fun isOdd(n) {
+            ...   if (n == 0) return false;
+            ...   return isEven(n - 1);
+            ... }
+            >>> fun isEven(n) {
+            ...   if (n == 0) return true;
+            ...   return isOdd(n - 1);
+            ... }
+            >>> print isOdd(3);
+            true
+            >>> print isEven(6);
+            true
+            """);
+    }
+
+    @Test
     void fibFunTest() {
         runDocTest("""
             >>> fun count(n) {
@@ -308,6 +314,18 @@ class LoxTests {
     }
 
     @Test
+    void localVarInitializerTest() {
+        final String script = """
+            var a = "outer";
+            {
+              var a = a;
+            }
+            """;
+
+        runAndComparePattern(script, "(.*)Error(.*)Can't read local variable in its own initializer(.*)");
+    }
+
+    @Test
     void redefinitionErrTest() {
         final String script = """
             fun bad() {
@@ -317,7 +335,6 @@ class LoxTests {
             """;
 
         runAndComparePattern(script, "(.*)Error(.*)Already a variable with this name(.*)");
-//        Lox.hadError = false;
     }
 
     @Test
@@ -327,6 +344,131 @@ class LoxTests {
             """;
 
         runAndComparePattern(script, "(.*)Error(.*)Can't return from top-level code(.*)");
-//        Lox.hadError = false;
+    }
+
+    // note: (?s) is needed for matching line breaks with '.' in regex
+    @Test
+    void callNonFunctionErrTest() {
+        final String script = """
+            "not a function"();
+            """;
+        runAndComparePattern(script, "(?s).*RuntimeError(.*)Can only call functions and classes(.*)");
+    }
+
+    @Test
+    void invalidAssignmentTest() {
+        final String script = """
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            a + b = c;
+            """;
+        runAndComparePattern(script, "(?s).*Error(.*)Invalid assignment target(.*)");
+    }
+
+    @Test
+    void basicClassTest() {
+        runDocTest("""
+            >>> class Bagel {}
+            >>> var bagel = Bagel();
+            >>> print Bagel;
+            <class Bagel>
+            >>> print bagel;
+            <class Bagel instance>
+            >>> bagel.topping = "cream cheese";
+            >>> print bagel.topping;
+            cream cheese
+            """);
+    }
+
+    @Test
+    void classUndefinedPropertyErrTest() {
+        runAndComparePattern("""
+            class Bagel {}
+            var bagel = Bagel();
+            print bagel.toasted;
+            """, "(?s).*Error(.*)Undefined property 'toasted'(.*)");
+    }
+
+    @Test
+    void classMethodTest() {
+        // normal
+        runDocTest("""
+            >>> class Bacon {
+            ...   eat() {
+            ...     print "Crunch";
+            ...   }
+            ... }
+            >>> Bacon().eat();
+            Crunch
+            """);
+        // put method into object
+        runDocTest("""
+            >>> class Box {}
+            >>> fun notMethod(argument) {
+            ...   print "called function with " + argument;
+            ... }
+            >>> var box = Box();
+            >>> box.function = notMethod;
+            >>> box.function("argument");
+            called function with argument
+            """);
+    }
+
+    @Test
+    void classThisTest() {
+        runDocTest("""
+            >>> class Cake {
+            ...   taste() {
+            ...     var adjective = "delicious";
+            ...     print "The " + this.flavor + " cake is " + adjective + "!";
+            ...   }
+            ... }
+            >>> var cake = Cake();
+            >>> cake.flavor = "Chocolate";
+            >>> cake.taste();
+            The Chocolate cake is delicious!
+            """);
+    }
+
+    @Test
+    void classClosureTest() {
+        runDocTest("""
+                >>> class Egotist {
+                ...   speak() {
+                ...     print this;
+                ...   }
+                ... }
+                >>> var method = Egotist().speak;
+                >>> method();
+                <class Egotist instance>
+                """);
+    }
+
+    @Test
+    void classThisErrTest() {
+        runAndComparePattern("""
+                print this;
+                """,
+                "(?s).*Error(.*)Can't use 'this' outside of a class(.*)");
+        Lox.hadError = false;
+        runAndComparePattern("""
+                fun notAMethod() {
+                  print this;
+                }
+                """,
+                "(?s).*Error(.*)Can't use 'this' outside of a class(.*)");
+    }
+
+    @Test
+    void classInitializerErrTest() {
+        final String script = """
+            class Foo {
+              init() {
+                return "bad";
+              }
+            }
+            """;
+        runAndComparePattern(script, "(?s).*Error(.*)Can't return a value from an initializer(.*)");
     }
 }
