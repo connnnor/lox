@@ -67,6 +67,8 @@ class Ray {
     }
 }
 
+// math
+
 fun abs(n) {
     if (n < 0) {
         return -n;
@@ -90,7 +92,19 @@ fun dot(u, v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
+fun hitSphere(center, radius, r) {
+    var oc = r.origin.subtractVector(center);
+    var a = dot(r.dir, r.dir);
+    var b = 2.0 * dot(oc, r.dir);
+    var c = dot(oc, oc) - radius * radius;
+    var discriminant = b*b - 4*a*c;
+    return discriminant > 0;
+}
+
 fun rayColor(ray) {
+    if (hitSphere(Vector(0, 0, -1), 0.5, ray)) {
+        return Vector(1, 0, 0);
+    }
     var unitDirection = ray.dir.unitVector();
     var a = 0.5 * (unitDirection.y + 1);
     var vecA = Vector(1, 1, 1).multiplyNum(1 - a);
