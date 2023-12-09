@@ -7,4 +7,12 @@ public class RuntimeError extends RuntimeException {
         super("RuntimeError: " + message);
         this.token = token;
     }
+
+    RuntimeError(String message) {
+        this(null, message);
+    }
+
+    String getTokenMsg() {
+        return token != null ? "\n[line" + token.line + "]" : "";
+    }
 }

@@ -12,6 +12,10 @@ public class Interpreter implements Expr.Visitor<Object>,
     private Environment environment = globals;
     private final Map<Expr, Integer> locals = new HashMap<>();
 
+    private double floor(double n) {
+        return n - (n % 1);
+    }
+
     Interpreter() {
         globals.define("clock", new LoxCallable() {
             @Override
@@ -20,6 +24,23 @@ public class Interpreter implements Expr.Visitor<Object>,
             @Override
             public Object call(Interpreter interpreter, List<Object> arguments) {
                 return (double) System.currentTimeMillis() / 1000.0;
+            }
+
+            @Override
+            public String toString() { return "<native fn>"; }
+        });
+
+        globals.define("floor", new LoxCallable() {
+            @Override
+            public int arity() { return 1; }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                Object arg = arguments.get(0);
+                if (arg instanceof Double) {
+                    return floor((double) arg);
+                }
+                throw new RuntimeError("floor argument must be double. got " + arg);
             }
 
             @Override
@@ -109,6 +130,10 @@ public class Interpreter implements Expr.Visitor<Object>,
                 }
                 if (left instanceof String && right instanceof String) {
                     return (String)left + (String)right;
+                }
+                // either arg is a string, so string-ify them
+                if (left instanceof String || right instanceof String) {
+                    return stringify(left) + stringify(right);
                 }
                 throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings");
             case MINUS:
@@ -267,7 +292,8 @@ public class Interpreter implements Expr.Visitor<Object>,
         environment.define(stmt.name.lexeme, null);
         Map<String, LoxFunction> methods = new HashMap<>();
         for (Stmt.Function method : stmt.methods) {
-            LoxFunction function = new LoxFunction(method, environment);
+            LoxFunction function = new LoxFunction(method, environment,
+                    method.name.lexeme.equals("init"));
             methods.put(method.name.lexeme, function);
         }
         LoxClass clazz = new LoxClass(stmt.name.lexeme, methods);
@@ -295,7 +321,7 @@ public class Interpreter implements Expr.Visitor<Object>,
 
     @Override
     public Object visitFunctionStmt(Stmt.Function stmt) {
-        LoxFunction function = new LoxFunction(stmt, environment);
+        LoxFunction function = new LoxFunction(stmt, environment, false);
         environment.define(stmt.name.lexeme, function);
         return null;
     }

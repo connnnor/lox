@@ -3,3 +3,7 @@ DONE ch. 12.4 'Properties on Instances'
 
 12/7
 TODO ch. 12.7 'Constructors and Initializers'
+
+12/8
+Ray tracing - 6. Surface Normals and Multiple Objects
+https://raytracing.github.io/books/RayTracingInOneWeekend.html#outputanimage/theppmimageformat
