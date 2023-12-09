@@ -102,6 +102,14 @@ class LoxTests {
         }
     }
 
+    private String errorPattern(String msg) {
+        return "(?s).*Error(.*)" + msg + "(.*)";
+    }
+
+    private String runtimeErrorPattern(String msg) {
+        return "(?s).*RuntimeError(.*)" + msg + "(.*)";
+    }
+
     @Test
     void printTest() {
         runDocTest("""
@@ -122,6 +130,117 @@ class LoxTests {
                 >>> print a + b;
                 3
                 """);
+    }
+
+    @Test
+    void unaryExprTest() {
+        runDocTest("""
+                >>> var a = 1;
+                ... print -a;
+                -1
+                >>> var b = false;
+                ... print !b;
+                true
+                """);
+    }
+
+    @Test
+    void testCheckNumErrTest() {
+        runAndComparePattern("""
+                false < 1;
+                """,
+                runtimeErrorPattern("Operands must be a number"));
+        Lox.hadError = false;
+        runAndComparePattern("""
+                -false;
+                """,
+                runtimeErrorPattern("Operand must be a number"));
+    }
+
+    @Test
+    void shortCircuitTest() {
+        runDocTest("""
+                >>> fun sideEffect() {
+                ...     print "sideEffect";
+                ...     return true;
+                ... }
+                ... print false and sideEffect();
+                false
+                """);
+    }
+
+
+    @Test
+    void binaryExprTest() {
+        runDocTest("""
+                >>> print 2 > 1; // greater
+                true
+                >>> print 1 > 2;
+                false
+                >>> print 2 >= 2; // greater-equal
+                true
+                >>> print 1 >= 2;
+                false
+                >>> print 2 < 1; // less
+                false
+                >>> print 1 < 2;
+                true
+                >>> print 1 <= 1; // less-equal
+                true
+                >>> print 2 <= 1;
+                false
+                >>> print "abc" == "def"; //  equal-equal
+                false
+                >>> print "abc" == "abc";
+                true
+                >>> print "abc" != "def"; //  bang-equal
+                true
+                >>> print "abc" != "abc";
+                false
+                >>> print 6 / 2; // div
+                3
+                >>> // adding strings to nums
+                >>> var num = 6;
+                ... print "your number is " + num;
+                your number is 6
+                >>> var num = 6;
+                ... print num + " is your number";
+                6 is your number
+                """);
+    }
+
+    @Test
+    void binaryExprErrTest() {
+        runAndComparePattern("""
+                false + 3;
+                """,
+                "(?s).*Error(.*)Operands must be two numbers or two strings(.*)");
+        Lox.hadError = false;
+    }
+
+    @Test
+    void groupingExprTest() {
+        runDocTest("""
+                >>> var a = 5;
+                ... print ((a + 2) * 3);
+                21
+                """);
+    }
+
+    @Test
+    void getExprErrTest() {
+        runAndComparePattern("""
+                "some string".property;
+                """,
+                "(?s).*Error(.*)Only instances have properties.(.*)");
+    }
+
+    @Test
+    void setExprErrTest() {
+        runAndComparePattern("""
+                "some string".property = true;
+                """,
+                "(?s).*Error(.*)Only instances have fields.(.*)");
     }
 
     @Test
@@ -356,6 +475,83 @@ class LoxTests {
     }
 
     @Test
+    void callArityErrTest() {
+        final String script = """
+            fun square(n) { return n*n; }
+            square();
+            """;
+        runAndComparePattern(script, runtimeErrorPattern("Expected 1 arguments but got 0"));
+    }
+
+    @Test
+    void callNumArgsErrTest() {
+        // function declaration
+        StringBuilder sb = new StringBuilder();
+        sb.append("fun tooMuchFun(");
+        final int numArgs = 256;
+        for (int i = 0; i < numArgs; i++) {
+            sb.append("arg" + i + ",");
+        }
+        sb.deleteCharAt(sb.length() - 1); // remove last comma
+        sb.append(") { print \"hi\"; }");
+        String script = sb.toString();
+        runAndComparePattern(script, errorPattern("Can't have more than 255 parameters."));
+
+        Lox.hadError = false;
+
+        // function call
+        sb = new StringBuilder();
+        sb.append("tooMuchFun(");
+        for (int i = 0; i < numArgs; i++) {
+            sb.append("arg" + i + ",");
+        }
+        sb.deleteCharAt(sb.length() - 1); // remove last comma
+        sb.append(");");
+        script = sb.toString();
+        runAndComparePattern(script, errorPattern("Can't have more than 255 arguments."));
+    }
+
+    @Test
+    void forInitializerTest() {
+        runDocTest("""
+            >>> var i = 0;
+            ... for (; i < 3; i = i + 1) { // no initializer
+            ...   print i;
+            ... }
+            0
+            1
+            2
+            >>> var j = 5;
+            >>> for (j = 0; j < 3; j = j + 1) { // expr statement
+            ...   print j;
+            ... }
+            0
+            1
+            2
+            >>> for (var k = 0; k < 3; k = k + 1) { // var declaration
+            ...   print k;
+            ... }
+            0
+            1
+            2
+            """);
+    }
+
+    @Test
+    void primaryExprErrTest() {
+        runAndComparePattern("""
+                var a = @;
+                """, errorPattern("Expect expression"));
+    }
+
+    @Test
+    void unmatchedParenErrTest() {
+        runAndComparePattern("""
+                var a = (1 + 2;
+                """, errorPattern("Expect '\\)' after expression."));
+    }
+
+    @Test
     void invalidAssignmentTest() {
         final String script = """
             var a = 1;
@@ -364,6 +560,17 @@ class LoxTests {
             a + b = c;
             """;
         runAndComparePattern(script, "(?s).*Error(.*)Invalid assignment target(.*)");
+    }
+
+    @Test
+    void functionStrTest() {
+        runDocTest("""
+            >>> fun square(n) {
+            ...   return n*n;
+            ... }
+            ... print square;
+            <fn square>
+            """);
     }
 
     @Test
@@ -461,6 +668,20 @@ class LoxTests {
     }
 
     @Test
+    void classInitializerTest() {
+        runDocTest("""
+            >>> class Foo {
+            ...   init() {
+            ...     this.value = "bar";
+            ...   }
+            ... }
+            ... var foo = Foo();
+            ... print foo.value;
+            bar
+            """);
+    }
+
+    @Test
     void classInitializerErrTest() {
         final String script = """
             class Foo {
@@ -470,5 +691,29 @@ class LoxTests {
             }
             """;
         runAndComparePattern(script, "(?s).*Error(.*)Can't return a value from an initializer(.*)");
+    }
+
+    @Test
+    void builtInsTest() {
+        runDocTest("""
+            >>> var now = clock();
+            >>> print clock;
+            <native fn>
+            """);
+        runDocTest("""
+            >>> var num = 49.34;
+            ... print floor(num);
+            49
+            >>> print floor;
+            <native fn>
+            """);
+    }
+
+    @Test
+    void floorArgErrTest() {
+        runAndComparePattern("""
+                floor("123.5");
+                """,
+                runtimeErrorPattern("floor argument must be double"));
     }
 }
