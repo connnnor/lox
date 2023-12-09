@@ -1,0 +1,5 @@
+12/6
+DONE ch. 12.4 'Properties on Instances'
+
+12/7
+TODO ch. 12.7 'Constructors and Initializers'

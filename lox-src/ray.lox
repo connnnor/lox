@@ -1,0 +1,137 @@
+// create a simple ppm image
+
+fun writePpmHeader(width, height) {
+    print "P3";
+    print width + " " + height;
+    print 255;
+}
+
+class Vector {
+    init(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    write() {
+        print this.x + " " + this.y + " " + this.z;
+    }
+
+    writeColor() {
+        print floor(255.999*this.x) + " " 
+            + floor(255.999*this.y) + " " 
+            + floor(255.999*this.z);
+    }
+
+    negate() {
+        return Vector(-this.x, -this.y, -this.z);
+    }
+
+    addVector(other) {
+        return Vector(this.x + other.x, this.y + other.y, this.z + other.z);
+    }
+
+    subtractVector(other) {
+        return Vector(this.x - other.x, this.y - other.y, this.z - other.z);
+    }
+
+    multiplyNum(num) {
+        return Vector(num * this.x, num * this.y, num * this.z);
+    }
+
+    divideNum(num) {
+        return Vector(this.x / num, this.y / num, this.z / num);
+    }
+
+    unitVector() {
+        return this.divideNum(this.length());
+    }
+
+    lengthSquared() {
+        return this.x*this.x + this.y*this.y + this.z*this.z;
+    }
+
+    length() {
+        return sqrt(this.lengthSquared());
+    }
+}
+
+class Ray {
+    init(origin, dir) {
+        this.origin = origin;
+        this.dir = dir;
+    }
+
+    at(t) {
+        return this.origin.addVector(this.dir.multiplyNum(t));
+    }
+}
+
+fun abs(n) {
+    if (n < 0) {
+        return -n;
+    } else {
+        return n;
+    }
+}
+
+fun sqrt(n) {
+    var guess = 0;
+    var result = n / 2;
+
+    while (abs(guess - result) >= 0.001) {
+        guess = result;
+        result = (guess + (n / guess)) / 2;
+    }
+    return result;
+}
+
+fun dot(u, v) {
+    return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+fun rayColor(ray) {
+    var unitDirection = ray.dir.unitVector();
+    var a = 0.5 * (unitDirection.y + 1);
+    var vecA = Vector(1, 1, 1).multiplyNum(1 - a);
+    var vecB = Vector(0.5, 0.7, 1).multiplyNum(a);
+    return vecA.addVector(vecB);
+}
+
+var aspectRatio = 16 / 9;
+
+var width = 256;
+var height = floor(width / aspectRatio);
+
+var focalLen = 1;
+var viewportHeight = 2.0;
+var viewportWidth = viewportHeight * (width / height);
+var cameraCenter = Vector(0, 0, 0);
+
+var viewportU = Vector(viewportWidth, 0, 0);
+var viewportV = Vector(0, -viewportHeight, 0);
+
+var pixelDeltaU = viewportU.divideNum(width);
+var pixelDeltaV = viewportV.divideNum(height);
+
+var viewportUpperLeft = cameraCenter
+    .subtractVector(Vector(0, 0, focalLen))
+    .subtractVector(viewportU.divideNum(2))
+    .subtractVector(viewportV.divideNum(2));
+
+var pixelZeroZero = viewportUpperLeft
+    .addVector(pixelDeltaU.addVector(pixelDeltaV).multiplyNum(0.5));
+
+writePpmHeader(width, height);
+
+for (var j = 0; j < height; j = j + 1) {
+    for (var i = 0; i < width; i = i + 1) {
+        var pixelCenter = pixelZeroZero
+            .addVector(pixelDeltaU.multiplyNum(i))
+            .addVector(pixelDeltaV.multiplyNum(j));
+        var rayDirection = pixelCenter.subtractVector(cameraCenter);
+        var ray = Ray(cameraCenter, rayDirection);
+        var pixelColor = rayColor(ray);
+        pixelColor.writeColor();
+    }
+}
