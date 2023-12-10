@@ -5,8 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.craftinginterpreters.lox.TokenType.*;
-import static javax.management.Query.and;
-import static javax.management.Query.eq;
 
 /**
  * Grammar Rules are described in table.
@@ -37,7 +35,7 @@ import static javax.management.Query.eq;
  * </table>
  */
 public class Parser {
-    private static class ParseError extends RuntimeException {};
+    private static class ParseError extends RuntimeException {}
     private final List<Token> tokens;
     private int current = 0;
 
@@ -68,6 +66,12 @@ public class Parser {
 
     private Stmt classDeclaration() {
         Token name = consume(IDENTIFIER, "Expect class name.");
+
+        Expr.Variable superclass = null;
+        if (match(LESS)) {
+            consume(IDENTIFIER, "Expect superclass name.");
+            superclass = new Expr.Variable(previous());
+        }
         consume(LEFT_BRACE, "Expect '{' before class body.");
         List<Stmt.Function> methods = new ArrayList<>();
         while(!check(RIGHT_BRACE) && !isAtEnd()) {
@@ -76,7 +80,7 @@ public class Parser {
 
         consume(RIGHT_BRACE, "Expect '}' after class body.");
 
-        return new Stmt.Class(name, methods);
+        return new Stmt.Class(name, superclass, methods);
     }
 
     private Stmt.Function function(String kind) {
@@ -269,14 +273,6 @@ public class Parser {
         return new Stmt.Expression(expr);
     }
 
-    /**
-     *
-     * <pre>{@code
-     * expression  → equality ;
-     * equality    → comparison ( ( "!=" | "==" ) comparison)* ;
-     * }</pre>
-     * @return
-     */
     private Expr equality() {
         Expr expr = comparison();
 
@@ -289,14 +285,6 @@ public class Parser {
     }
 
 
-    /**
-     * comparison rule.
-     *
-     * <pre>{@code
-     * comparison  → term ( ( "<" | ">" | "<=" | ">=" ) term)* ;
-     * }</pre>
-     * @return
-     */
     private Expr comparison() {
         Expr expr = term();
 
@@ -308,14 +296,6 @@ public class Parser {
         return expr;
     }
 
-    /**
-     * terminal rule.
-     *
-     * <pre>{@code
-     * term        → factor ( ( "+"  | "-"  | "*" | "/" ) factor)* ;
-     * }</pre>
-     * @return
-     */
     private Expr term() {
         Expr expr = factor();
 
@@ -327,13 +307,6 @@ public class Parser {
         return expr;
     }
 
-    /**
-     *
-     * <pre>{@code
-     * factor      → unary ( ( "/" | "*") unary)* ;
-     * }</pre>
-     * @return
-     */
     private Expr factor() {
         Expr expr = unary();
 
@@ -345,16 +318,6 @@ public class Parser {
         return expr;
     }
 
-    /**
-     * unary rule.
-     * Note: this rule is a little different
-     *
-     * <pre>{@code
-     * unary       → ( "!" | "-") unary
-     *             | primary
-     * }</pre>
-     * @return
-     */
     private Expr unary() {
         if (match(BANG, MINUS)) {
             Token operator = previous();
@@ -397,15 +360,6 @@ public class Parser {
         return new Expr.Call(callee, paren, arguments);
     }
 
-    /**
-     * primary rule.
-     *
-     * primary     → NUMBER | STRING | "true" | "false" | "nil"
-     *             | "(" expression ")" ;
-     * <pre>{@code
-     * }</pre>
-     * @return
-     */
     private Expr primary() {
         if (match(FALSE)) { return new Expr.Literal(false); }
         if (match(TRUE)) { return new Expr.Literal(true); }
@@ -413,6 +367,14 @@ public class Parser {
 
         if (match(NUMBER, STRING)) {
             return new Expr.Literal(previous().literal);
+        }
+
+        if (match(SUPER)) {
+            Token keyword = previous();
+            consume(DOT, "Expect '.' after 'super'.");
+            Token method = consume(IDENTIFIER,
+                    "Expect superclass method name.");
+            return new Expr.Super(keyword, method);
         }
 
         if (match(THIS)) {
@@ -432,17 +394,6 @@ public class Parser {
         throw error(peek(), "Expect expression.");
     }
 
-    /**
-     * Check to see if the current token has any of the given types.
-     * If so, consume the tokens and return true. Otherwise, return false
-     * and leave the current token alone.
-     *
-     * @param types the types to check
-     * <pre>{@code
-     * expression  → equality ;
-     * }</pre>
-     * @return true if current token matches any of given types
-     */
     private boolean match(TokenType ... types) {
         for (TokenType type : types) {
             if (check(type)) {
@@ -453,14 +404,6 @@ public class Parser {
         return false;
     }
 
-    /**
-     * Check to see if the next token is of expected type. If so, consume it.
-     * If not, then we've hit an error
-     *
-     * @param type the type to check
-     * @param message error message to display
-     * @return consumed token
-     */
     private Token consume(TokenType type, String message) {
         if (check(type)) { return advance(); };
         throw error(peek(), message);

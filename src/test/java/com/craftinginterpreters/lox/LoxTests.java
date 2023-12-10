@@ -716,4 +716,100 @@ class LoxTests {
                 """,
                 runtimeErrorPattern("floor argument must be double"));
     }
+
+    @Test
+    void inheritanceSelfErrTest() {
+        runAndComparePattern("""
+                class Bad < Bad {}
+                """,
+                errorPattern("A class can't inherit from itself"));
+    }
+
+    @Test
+    void inheritanceParserErrTest() {
+        runAndComparePattern("""
+                class Bad < ! {}
+                """,
+                errorPattern("Expect superclass name"));
+    }
+
+    @Test
+    void inheritanceNotClassErrTest() {
+        runAndComparePattern("""
+                var NotAClass = "a string";
+                class Bad < NotAClass {}
+                """,
+                errorPattern("Superclass must be a class"));
+    }
+
+    @Test
+    void inheritanceTest() {
+        runDocTest("""
+            >>> class Doughnut {
+            ...   cook() {
+            ...     print "Fry until golden brown.";
+            ...   }
+            ... }
+            >>> class BostonCream < Doughnut {
+            ...   cook() {
+            ...     super.cook();
+            ...     print "Pipe full of custard and coat with chocolate.";
+            ...   }
+            ... }
+            >>> BostonCream().cook();
+            Fry until golden brown.
+            Pipe full of custard and coat with chocolate.
+            """);
+    }
+
+    @Test
+    void inheritanceSuperTest() {
+        runDocTest("""
+            >>> class A {
+            ...   method() {
+            ...     print "A method";
+            ...   }
+            ... }
+            ... class B < A{
+            ...   method() {
+            ...     print "B method";
+            ...   }
+            ...   test() {
+            ...     super.method();
+            ...   }
+            ... }
+            ... class C < B {}
+            ... C().test();
+            A method
+            """);
+    }
+
+    @Test
+    void inheritanceSuperErrTest() {
+        runAndComparePattern("""
+                super.cook();
+                """,
+                errorPattern("Can't use 'super' outside of a class"));
+        Lox.hadError = false;
+        runAndComparePattern("""
+                class Eclair {
+                    cook() {
+                        super.cook();
+                        print "Pipe full of creme patisserie";
+                    }
+                }
+                """,
+                errorPattern("Can't use 'super' in a class with no superclass"));
+        Lox.hadError = false;
+        runAndComparePattern("""
+                class A {}
+                class B < A {
+                    method() {
+                        super.method();
+                    }
+                }
+                B().method();
+                """,
+                runtimeErrorPattern("Undefined property 'method'"));
+    }
 }
