@@ -6,6 +6,16 @@ fun writePpmHeader(width, height) {
     print 255;
 }
 
+fun clamp(x) {
+    if (x < 0) {
+        return 0;
+    }
+    if (x > 1) {
+        return 1;
+    }
+    return x;
+}
+
 //
 // Vector
 //
@@ -17,14 +27,15 @@ class Vector {
         this.z = z;
     }
 
-    write() {
-        print this.x + " " + this.y + " " + this.z;
-    }
+    writeColorSamples(samplesPerPixel) {
+        var scale = 1 / samplesPerPixel;
+        var r = this.x * scale;
+        var g = this.y * scale;
+        var b = this.z * scale;
 
-    writeColor() {
-        print floor(255.999*this.x) + " " 
-            + floor(255.999*this.y) + " " 
-            + floor(255.999*this.z);
+        print floor(255.999*clamp(r)) + " "
+            + floor(255.999*clamp(g)) + " "
+            + floor(255.999*clamp(b));
     }
 
     negate() {
@@ -43,6 +54,10 @@ class Vector {
         return Vector(num * this.x, num * this.y, num * this.z);
     }
 
+    multiplyVec(other) {
+        return Vector(this.x * other.x, this.y * other.y, this.z * other.z);
+    }
+
     divideNum(num) {
         return Vector(this.x / num, this.y / num, this.z / num);
     }
@@ -58,6 +73,16 @@ class Vector {
     length() {
         return sqrt(this.lengthSquared());
     }
+
+    nearZero() {
+        var s = 0.00000001;
+        return (abs(this.x) < s) and (abs(this.y) < s) and (abs(this.z) < s);
+    }
+}
+
+fun reflect(v, n) {
+    var c = 2 * dot(v, n);
+    return v.subtractVector(n.multiplyNum(c));
 }
 
 //
@@ -80,10 +105,11 @@ class Ray {
 //
 
 class HitRecord {
-    init(point, t, normal) {
+    init(point, t, normal, material) {
         this.point     = point;  // Point
         this.t         = t;      // double (intersect)
         this.normal    = normal; // Vector
+        this.material  = material;
     }
 
     setFaceNormal(ray, outwardNormal) {
@@ -107,9 +133,10 @@ class Hittable {
 
 class Sphere < Hittable {
     // returns hit record if hit or nil
-    init(center, radius) {
+    init(center, radius, material) {
         this.center = center;
         this.radius = radius;
+        this.material = material;
     }
 
     hit(ray, tMin, tMax) {
@@ -135,7 +162,7 @@ class Sphere < Hittable {
          var t = root;
          var point = ray.at(t);
          var normal = point.subtractVector(this.center).divideNum(this.radius);
-         var hitRecord = HitRecord(point, t, normal);
+         var hitRecord = HitRecord(point, t, normal, this.material);
          hitRecord.setFaceNormal(ray, normal);
          return hitRecord;
      }
@@ -186,6 +213,52 @@ class HittableList < Hittable {
 }
 
 //
+// Materials
+//
+
+class ScatterRecord {
+    // attenuation = color
+    // scattered = ray
+    init(attenuation, scattered) {
+        this.attenuation = attenuation;
+        this.scattered = scattered;
+    }
+}
+
+class Material {
+    // returns ScatterRecord
+    scatter(rayIn, hitRecord) {}
+}
+
+class Lambertian {
+    // returns ScatterRecord
+    init(color) {
+        this.albedo = color;
+    }
+
+    scatter(rayIn, hitRecord) {
+        var scatterDir = hitRecord.normal.addVector(randomUnitVector());
+        var scattered = Ray(hitRecord.point, scatterDir);
+        var attenuation = this.albedo;
+        return ScatterRecord(attenuation, scattered);
+    }
+}
+
+class Metal {
+    // returns ScatterRecord
+    init(color) {
+        this.albedo = color;
+    }
+
+    scatter(rayIn, hitRecord) {
+        var reflected = reflect(rayIn.dir.unitVector(), hitRecord.normal);
+        var scattered = Ray(hitRecord.point, reflected);
+        var attenuation = this.albedo;
+        return ScatterRecord(attenuation, scattered);
+    }
+}
+
+//
 // Math
 //
 
@@ -203,7 +276,7 @@ fun sqrt(n) {
     var guess = 0;
     var result = n / 2;
 
-    while (abs(guess - result) >= 0.001) {
+    while (abs(guess - result) >= 0.00001) {
         guess = result;
         result = (guess + (n / guess)) / 2;
     }
@@ -218,84 +291,148 @@ fun dot(u, v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
+fun randomInRange(min, max) {
+    return random() * (max - min) + min;
+}
+
+fun randomVector(min, max) {
+    return Vector(
+        randomInRange(min, max),
+        randomInRange(min, max),
+        randomInRange(min, max));
+}
+
+fun randomInUnitSphere() {
+    while (true) {
+        var p = randomVector(-1, 1);
+        if (p.lengthSquared() < 1) {
+            return p;
+        }
+    }
+}
+
+fun randomUnitVector() {
+    return randomInUnitSphere().unitVector();
+}
+
+fun randomOnHemisphere(normal) {
+    var onUnitSphere = randomUnitVector();
+    if (dot(onUnitSphere, normal) > 0) {
+        return onUnitSphere;
+    } else {
+        return onUnitSphere.multiplyNum(-1);
+    }
+}
+
+//
+// Camera
+//
+
+class Camera {
+    init(aspectRatio, width, samplesPerPixel, childRays) {
+        this.aspectRatio = aspectRatio;
+        this.width = width;
+        this.height = floor(width / aspectRatio);
+        this.samplesPerPixel = samplesPerPixel;   // random samples per pixel (anti-aliasing)
+        this.maxDepth = childRays;                // max number of ray bounces
+
+        this.focalLen = 1.0;
+        this.viewportHeight = 2.0;
+        this.viewportWidth = this.viewportHeight * (this.width / this.height);
+        this.cameraCenter = Vector(0, 0, 0);
+
+        this.viewportU = Vector(this.viewportWidth, 0, 0);
+        this.viewportV = Vector(0, -this.viewportHeight, 0);
+
+        this.pixelDeltaU = this.viewportU.divideNum(this.width);
+        this.pixelDeltaV = this.viewportV.divideNum(this.height);
+
+        this.viewportUpperLeft = this.cameraCenter
+            .subtractVector(Vector(0, 0, this.focalLen))
+            .subtractVector(this.viewportU.divideNum(2))
+            .subtractVector(this.viewportV.divideNum(2));
+
+        this.pixelZeroZero = this.viewportUpperLeft
+            .addVector(this.pixelDeltaU.addVector(this.pixelDeltaV).multiplyNum(0.5));
+    }
+
+    render(world) {
+        writePpmHeader(this.width, this.height);
+        for (var j = 0; j < this.height; j = j + 1) {
+            for (var i = 0; i < this.width; i = i + 1) {
+                var pixelColor = Vector(0, 0, 0);
+                for (var s = 0; s < this.samplesPerPixel; s = s + 1) {
+                    var ray = this.getRay(i, j);
+                    pixelColor = pixelColor.addVector(this.rayColor(ray, this.maxDepth, world));
+                }
+                pixelColor.writeColorSamples(this.samplesPerPixel);//writeColor();
+            }
+        }
+    }
+
+    getRay(i, j) {
+        var pixelCenter = this.pixelZeroZero
+            .addVector(this.pixelDeltaU.multiplyNum(i))
+            .addVector(this.pixelDeltaV.multiplyNum(j));
+        var pixelSample = pixelCenter.addVector(this.pixelSampleSquare());
+        var rayOrigin = this.cameraCenter;
+        var rayDirection = pixelSample.subtractVector(rayOrigin);
+        return Ray(rayOrigin, rayDirection);
+    }
+
+    pixelSampleSquare() {
+        var px = -0.5 + random();
+        var py = -0.5 + random();
+        return this.pixelDeltaU.multiplyNum(px).addVector(this.pixelDeltaV.multiplyNum(py));
+    }
+
+    rayColor(ray, depth, hittable) {
+        if (depth <= 0) {
+            // exceeded ray bounce limit
+            return Vector(0, 0, 0);
+        }
+        var hitRecord = hittable.hit(ray, 0.001, INF);
+        if (hitRecord) {
+            var scatterRecord = hitRecord.material.scatter(ray, hitRecord);
+            if (scatterRecord) {
+                return scatterRecord.attenuation.multiplyVec(this.rayColor(scatterRecord.scattered, depth - 1, world));
+            }
+            return Vector(0, 0, 0);
+        }
+
+        var unitDirection = ray.dir.unitVector();
+        var a = 0.5 * (unitDirection.y + 1);
+        var vecA = Vector(1, 1, 1).multiplyNum(1 - a);
+        var vecB = Vector(0.5, 0.7, 1).multiplyNum(a);
+        return vecA.addVector(vecB);
+    }
+}
+
 //
 // Raytracer
 //
 
-// world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
-fun hit  (center, radius, r) {
-    var oc = r.origin.subtractVector(center);
-    var a = dot(r.dir, r.dir);
-    var b = 2.0 * dot(oc, r.dir);
-    var c = dot(oc, oc) - radius * radius;
-    var discriminant = b*b - 4*a*c;
-
-    if (discriminant < 0) {
-        return -1;
-    } else {
-        return (-b - sqrt(discriminant) ) / (2 * a);
-    }
-}
-
-fun rayColor(ray, hittable) {
-    var hitRecord = hittable.hit(ray, 0, INF);
-    if (hitRecord) {
-        var norm = hitRecord.normal;
-        return Vector(norm.x + 1, norm.y + 1, norm.z + 1).multiplyNum(0.5);
-    }
-
-    var unitDirection = ray.dir.unitVector();
-    var a = 0.5 * (unitDirection.y + 1);
-    var vecA = Vector(1, 1, 1).multiplyNum(1 - a);
-    var vecB = Vector(0.5, 0.7, 1).multiplyNum(a);
-    return vecA.addVector(vecB);
-}
-
 // Image
 
 var aspectRatio = 16 / 9;
-var width = 256;
-var height = floor(width / aspectRatio);
+var width = 400;
+var samplesPerPixel = 10;
+var childRays = 5;
 
 // World
 
 var world = HittableList();
-var smallSphere = Sphere(Vector(0,      0, -1), 0.5);
-world.addHittable(smallSphere);
-var bigSphere   = Sphere(Vector(0, -100.5, -1), 100);
-world.addHittable(bigSphere);
+var materialGround = Lambertian(Vector(0.70, 0.70, 0.70));
+var materialLeft   = Metal(     Vector(0.64, 0.16, 0.91));
+var materialCenter = Lambertian(Vector(1.00, 0.87, 0.12));
+var materialRight  = Metal(     Vector(0.21, 0.23, 0.90));
+
+world.addHittable(Sphere(Vector( 0.0, -100.5, -1.0), 100.0, materialGround));
+world.addHittable(Sphere(Vector(-1.0,    0.0, -1.0),   0.5, materialLeft));
+world.addHittable(Sphere(Vector( 0.0,    0.0, -1.0),   0.5, materialCenter));
+world.addHittable(Sphere(Vector( 1.0,    0.0, -1.0),   0.5, materialRight));
 
 // Camera
 
-var focalLen = 1.0;
-var viewportHeight = 2.0;
-var viewportWidth = viewportHeight * (width / height);
-var cameraCenter = Vector(0, 0, 0);
-
-var viewportU = Vector(viewportWidth, 0, 0);
-var viewportV = Vector(0, -viewportHeight, 0);
-
-var pixelDeltaU = viewportU.divideNum(width);
-var pixelDeltaV = viewportV.divideNum(height);
-
-var viewportUpperLeft = cameraCenter
-    .subtractVector(Vector(0, 0, focalLen))
-    .subtractVector(viewportU.divideNum(2))
-    .subtractVector(viewportV.divideNum(2));
-
-var pixelZeroZero = viewportUpperLeft
-    .addVector(pixelDeltaU.addVector(pixelDeltaV).multiplyNum(0.5));
-
-writePpmHeader(width, height);
-
-for (var j = 0; j < height; j = j + 1) {
-    for (var i = 0; i < width; i = i + 1) {
-        var pixelCenter = pixelZeroZero
-            .addVector(pixelDeltaU.multiplyNum(i))
-            .addVector(pixelDeltaV.multiplyNum(j));
-        var rayDirection = pixelCenter.subtractVector(cameraCenter);
-        var ray = Ray(cameraCenter, rayDirection);
-        var pixelColor = rayColor(ray, world);
-        pixelColor.writeColor();
-    }
-}
+var camera = Camera(aspectRatio, width, samplesPerPixel, childRays);
+camera.render(world);
