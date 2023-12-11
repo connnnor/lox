@@ -6,6 +6,10 @@ fun writePpmHeader(width, height) {
     print 255;
 }
 
+//
+// Vector
+//
+
 class Vector {
     init(x, y, z) {
         this.x = x;
@@ -56,6 +60,10 @@ class Vector {
     }
 }
 
+//
+// Ray
+//
+
 class Ray {
     init(origin, dir) {
         this.origin = origin;
@@ -67,7 +75,121 @@ class Ray {
     }
 }
 
-// math
+//
+// Hit Record
+//
+
+class HitRecord {
+    init(point, t, normal) {
+        this.point     = point;  // Point
+        this.t         = t;      // double (intersect)
+        this.normal    = normal; // Vector
+    }
+
+    setFaceNormal(ray, outwardNormal) {
+        this.frontFace = dot(ray.dir, outwardNormal) < 0;
+        if (this.frontFace) {
+            this.normal = outwardNormal;
+        } else {
+            this.normal = outwardNormal.multiplyNum(-1);
+        }
+    }
+}
+
+//
+// Hittable
+//
+
+class Hittable {
+    // returns hit record if hit or nil
+    hit(ray, tMin, tMax) {}
+}
+
+class Sphere < Hittable {
+    // returns hit record if hit or nil
+    init(center, radius) {
+        this.center = center;
+        this.radius = radius;
+    }
+
+    hit(ray, tMin, tMax) {
+        var oc = ray.origin.subtractVector(this.center);
+        var a = dot(ray.dir, ray.dir);
+        var half_b = dot(oc, ray.dir);
+        var c = dot(oc, oc) - this.radius * this.radius;
+        var discriminant = half_b*half_b - a*c;
+
+        if (discriminant < 0) {
+            return nil;
+        }
+
+         var discSqrt = sqrt(discriminant);
+         var root = (-half_b - discSqrt) / a;
+         if (root <= tMin or tMax <= root) {
+            root = (-half_b + discSqrt) / a;
+            if (root <= tMin or tMax <= root) {
+                return nil;
+            }
+         }
+
+         var t = root;
+         var point = ray.at(t);
+         var normal = point.subtractVector(this.center).divideNum(this.radius);
+         var hitRecord = HitRecord(point, t, normal);
+         hitRecord.setFaceNormal(ray, normal);
+         return hitRecord;
+     }
+}
+
+class Node {
+    init(value, next) {
+        this.value = value;
+        this.next = next;
+    }
+}
+
+class HittableList < Hittable {
+    init() {
+        this.head = nil;
+    }
+
+    // prepend item to linked list
+    addHittable(hittable) {
+        if (this.head == nil) {
+            this.head = Node(hittable, nil);
+        } else {
+            var tmp = this.head;
+            this.head = Node(hittable, tmp);
+        }
+
+    }
+
+    // returns hit record if hit or nil
+    hit(ray, tMin, tMax) {
+        var hitRecord = nil;
+        var hitAnything = false;
+        var closestSoFar = tMax;
+
+        var objNode = this.head;
+        while (objNode != nil) {
+            //print "objNode.radius = " + objNode.value.radius;
+            var tmpHitRecord = objNode.value.hit(ray, tMin, closestSoFar);
+            if (tmpHitRecord != nil) {
+                hitAnything = true;
+                closestSoFar = tmpHitRecord.t;
+                hitRecord = tmpHitRecord;
+            }
+            objNode = objNode.next;
+        }
+        return hitRecord;
+    }
+}
+
+//
+// Math
+//
+
+var INF = 999999999;
 
 fun abs(n) {
     if (n < 0) {
@@ -88,23 +210,40 @@ fun sqrt(n) {
     return result;
 }
 
+fun mod(n, divisor) {
+    return (n - divisor * (n / divisor));
+}
+
 fun dot(u, v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-fun hitSphere(center, radius, r) {
+//
+// Raytracer
+//
+
+// world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+fun hit  (center, radius, r) {
     var oc = r.origin.subtractVector(center);
     var a = dot(r.dir, r.dir);
     var b = 2.0 * dot(oc, r.dir);
     var c = dot(oc, oc) - radius * radius;
     var discriminant = b*b - 4*a*c;
-    return discriminant > 0;
+
+    if (discriminant < 0) {
+        return -1;
+    } else {
+        return (-b - sqrt(discriminant) ) / (2 * a);
+    }
 }
 
-fun rayColor(ray) {
-    if (hitSphere(Vector(0, 0, -1), 0.5, ray)) {
-        return Vector(1, 0, 0);
+fun rayColor(ray, hittable) {
+    var hitRecord = hittable.hit(ray, 0, INF);
+    if (hitRecord) {
+        var norm = hitRecord.normal;
+        return Vector(norm.x + 1, norm.y + 1, norm.z + 1).multiplyNum(0.5);
     }
+
     var unitDirection = ray.dir.unitVector();
     var a = 0.5 * (unitDirection.y + 1);
     var vecA = Vector(1, 1, 1).multiplyNum(1 - a);
@@ -112,12 +251,23 @@ fun rayColor(ray) {
     return vecA.addVector(vecB);
 }
 
-var aspectRatio = 16 / 9;
+// Image
 
+var aspectRatio = 16 / 9;
 var width = 256;
 var height = floor(width / aspectRatio);
 
-var focalLen = 1;
+// World
+
+var world = HittableList();
+var smallSphere = Sphere(Vector(0,      0, -1), 0.5);
+world.addHittable(smallSphere);
+var bigSphere   = Sphere(Vector(0, -100.5, -1), 100);
+world.addHittable(bigSphere);
+
+// Camera
+
+var focalLen = 1.0;
 var viewportHeight = 2.0;
 var viewportWidth = viewportHeight * (width / height);
 var cameraCenter = Vector(0, 0, 0);
@@ -145,7 +295,7 @@ for (var j = 0; j < height; j = j + 1) {
             .addVector(pixelDeltaV.multiplyNum(j));
         var rayDirection = pixelCenter.subtractVector(cameraCenter);
         var ray = Ray(cameraCenter, rayDirection);
-        var pixelColor = rayColor(ray);
+        var pixelColor = rayColor(ray, world);
         pixelColor.writeColor();
     }
 }
