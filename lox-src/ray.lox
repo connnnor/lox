@@ -85,6 +85,10 @@ fun reflect(v, n) {
     return v.subtractVector(n.multiplyNum(c));
 }
 
+//fun multiplyVec(u, v) {
+//    return Vector(u.x * v.x, u.y * v.y, u.z * v.z);
+//}
+
 //
 // Ray
 //
@@ -216,15 +220,6 @@ class HittableList < Hittable {
 // Materials
 //
 
-class ScatterRecord {
-    // attenuation = color
-    // scattered = ray
-    init(attenuation, scattered) {
-        this.attenuation = attenuation;
-        this.scattered = scattered;
-    }
-}
-
 class Material {
     // returns ScatterRecord
     scatter(rayIn, hitRecord) {}
@@ -263,6 +258,13 @@ class Metal {
 // Texture
 //
 
+class ScatterRecord {
+    init(attenuation, scattered) {
+        this.attenuation = attenuation;
+        this.scattered = scattered;
+    }
+}
+
 class Texture {
     value(u, v, point) {}
 }
@@ -283,8 +285,6 @@ class CheckerTexture {
         this.oddColor = oddColor;
     }
 
-
-
     value(u, v, point) {
         var scale = 0.32;
         var invScale = 1 / scale;
@@ -303,17 +303,11 @@ class CheckerTexture {
     }
 }
 
-
 //
 // Math
 //
 
 var INF = 999999999;
-var PI = 3.1415926535;
-
-fun degToRad(d) {
-    return d * PI / 180.0;
-}
 
 fun abs(n) {
     if (n < 0) {
@@ -335,17 +329,12 @@ fun sqrt(n) {
 }
 
 fun mod(n, divisor) {
-    return (n - divisor * (floor(n / divisor)));
+    //return (n - divisor * (n / divisor));
+    return (n - divisor * floor(n / divisor));
 }
 
 fun dot(u, v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
-}
-
-fun cross(u, v) {
-    return Vector(u.y * v.z - u.z * v.y,
-                  u.z * v.x - u.x * v.z,
-                  u.x * v.y - u.y * v.x);
 }
 
 fun randomInRange(min, max) {
@@ -385,11 +374,6 @@ fun randomOnHemisphere(normal) {
 // Camera
 //
 
-var lookFrom = Vector(-2,2,1);
-var lookAt   = Vector(0, 0, -1);
-var upVector = Vector(0, 1, 0);
-var vFov = 90;
-
 class Camera {
     init(aspectRatio, width, samplesPerPixel, childRays) {
         this.aspectRatio = aspectRatio;
@@ -398,25 +382,19 @@ class Camera {
         this.samplesPerPixel = samplesPerPixel;   // random samples per pixel (anti-aliasing)
         this.maxDepth = childRays;                // max number of ray bounces
 
-        this.center = lookFrom;
+        this.focalLen = 1.0;
+        this.viewportHeight = 2.0;
+        this.viewportWidth = this.viewportHeight * (this.width / this.height);
+        this.cameraCenter = Vector(0, 0, 0);
 
-        var theta = degToRad(vFov);
-        var h = tan(theta / 2);
-        // Determine viewport dimensions
-        this.viewportHeight = 2 * h;
-        this.viewportWidth = this.viewportHeight * this.aspectRatio;
-
-        var w = lookFrom.subtractVector(lookAt).unitVector();
-        var u = cross(upVector, w).unitVector();
-        var v = cross(w, u);
-
-        this.viewportU = u.multiplyNum(this.viewportWidth);
-        this.viewportV = v.multiplyNum(-this.viewportHeight);
+        this.viewportU = Vector(this.viewportWidth, 0, 0);
+        this.viewportV = Vector(0, -this.viewportHeight, 0);
 
         this.pixelDeltaU = this.viewportU.divideNum(this.width);
         this.pixelDeltaV = this.viewportV.divideNum(this.height);
 
-        this.viewportUpperLeft = this.center
+        this.viewportUpperLeft = this.cameraCenter
+            .subtractVector(Vector(0, 0, this.focalLen))
             .subtractVector(this.viewportU.divideNum(2))
             .subtractVector(this.viewportV.divideNum(2));
 
@@ -443,7 +421,7 @@ class Camera {
             .addVector(this.pixelDeltaU.multiplyNum(i))
             .addVector(this.pixelDeltaV.multiplyNum(j));
         var pixelSample = pixelCenter.addVector(this.pixelSampleSquare());
-        var rayOrigin = this.center;
+        var rayOrigin = this.cameraCenter;
         var rayDirection = pixelSample.subtractVector(rayOrigin);
         return Ray(rayOrigin, rayDirection);
     }
@@ -482,15 +460,12 @@ class Camera {
 
 // Image
 
-//var aspectRatio = 16 / 9;
 var aspectRatio = 16 / 9;
-var width = 120;
-var samplesPerPixel = 3;
+var width = 200;
+var samplesPerPixel = 2;
 var childRays = 3;
 
 // World
-
-
 
 var world = HittableList();
 var checkerTexture = CheckerTexture(Vector(0.2, 0.3, 0.1), Vector(0.9, 0.9, 0.9));
@@ -499,15 +474,10 @@ var materialLeft   = Metal(                  Vector(0.64, 0.16, 0.91));
 var materialCenter = Lambertian(ColorTexture(Vector(1.00, 0.87, 0.12)));
 var materialRight  = Metal(                  Vector(0.21, 0.23, 0.90));
 
-//world.addHittable(Sphere(Vector( 0.0, -1000.0, 0.0), 1000.0, materialGround));
-//world.addHittable(Sphere(Vector( 0.0,     1.0,  0.0),   1.0, materialLeft));
-//world.addHittable(Sphere(Vector(-4.0,     1.0,  0.0),   1.0, materialCenter));
-//world.addHittable(Sphere(Vector( 4.0,     1.0,  0.0),   1.0, materialRight));
-
-world.addHittable(Sphere(Vector( 0.0,  -100.5, -1.0), 100.0, materialGround));
-world.addHittable(Sphere(Vector(-1.0,     0.0, -1.0),   0.5, materialLeft));
-world.addHittable(Sphere(Vector(-1.0,     0.0, -1.0),   0.4, materialCenter));
-world.addHittable(Sphere(Vector( 1.0,     0.0, -1.0),   0.5, materialRight));
+world.addHittable(Sphere(Vector( 0.0, -100.5, -1.0), 100.0, materialGround));
+world.addHittable(Sphere(Vector(-1.0,    0.0, -1.0),   0.5, materialLeft));
+world.addHittable(Sphere(Vector( 0.0,    0.0, -1.0),   0.5, materialCenter));
+world.addHittable(Sphere(Vector( 1.0,    0.0, -1.0),   0.5, materialRight));
 
 // Camera
 
