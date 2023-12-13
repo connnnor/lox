@@ -292,8 +292,7 @@ class CheckerTexture {
         var x = floor(invScale * point.x);
         var y = floor(invScale * point.y);
         var z = floor(invScale * point.z);
-        //var isEven = mod(x + y + z, 2) <= 0.01;
-        var isEven = mod(x + y + z, 2) == 0;
+        var isEven = mod(floor(x) + floor(y) + floor(z), 2) == 0;
 
         if (isEven) {
             return this.evenColor;
@@ -329,8 +328,7 @@ fun sqrt(n) {
 }
 
 fun mod(n, divisor) {
-    //return (n - divisor * (n / divisor));
-    return (n - divisor * floor(n / divisor));
+    return n - divisor * floor(n / divisor);
 }
 
 fun dot(u, v) {
@@ -463,20 +461,21 @@ class Camera {
 var aspectRatio = 16 / 9;
 var width = 200;
 var samplesPerPixel = 2;
-var childRays = 3;
+var childRays = 2;
 
 // World
 
 var world = HittableList();
 var checkerTexture = CheckerTexture(Vector(0.2, 0.3, 0.1), Vector(0.9, 0.9, 0.9));
 var materialGround = Lambertian(checkerTexture);
-var materialLeft   = Metal(                  Vector(0.64, 0.16, 0.91));
-var materialCenter = Lambertian(ColorTexture(Vector(1.00, 0.87, 0.12)));
-var materialRight  = Metal(                  Vector(0.21, 0.23, 0.90));
+var materialLeft   = Metal(                  Vector(0.88, 0.00, 0.59));
+var materialCenter = Lambertian(ColorTexture(Vector(0.29, 0.78, 0.89)));
+var materialRight  = Metal(                  Vector(0.84, 0.66, 0.89));
 
-world.addHittable(Sphere(Vector( 0.0, -100.5, -1.0), 100.0, materialGround));
-world.addHittable(Sphere(Vector(-1.0,    0.0, -1.0),   0.5, materialLeft));
-world.addHittable(Sphere(Vector( 0.0,    0.0, -1.0),   0.5, materialCenter));
+//world.addHittable(Sphere(Vector( 0.0, -100.5, -1.0), 100.0, materialGround));
+world.addHittable(Sphere(Vector( 0.0, -1000.5, -1.0), 1000.0, materialGround));
+//world.addHittable(Sphere(Vector(-1.0,    0.0, -1.0),   0.5, materialLeft));
+//world.addHittable(Sphere(Vector( 0.0,    0.0, -1.0),   0.5, materialCenter));
 world.addHittable(Sphere(Vector( 1.0,    0.0, -1.0),   0.5, materialRight));
 
 // Camera
