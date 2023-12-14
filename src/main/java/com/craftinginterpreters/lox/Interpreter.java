@@ -46,6 +46,19 @@ public class Interpreter implements Expr.Visitor<Object>,
             @Override
             public String toString() { return "<native fn>"; }
         });
+
+        globals.define("random", new LoxCallable() {
+            @Override
+            public int arity() { return 0; }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                return (double) Math.random();
+            }
+
+            @Override
+            public String toString() { return "<native fn>"; }
+        });
     }
 
     void interpret(List<Stmt> statements) {
