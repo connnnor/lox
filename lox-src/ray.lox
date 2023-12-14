@@ -383,7 +383,8 @@ class Camera {
         this.focalLen = 1.0;
         this.viewportHeight = 2.0;
         this.viewportWidth = this.viewportHeight * (this.width / this.height);
-        this.cameraCenter = Vector(0, 0, 0);
+        //this.cameraCenter = Vector(0, 0, 0);
+        this.cameraCenter = Vector(5, 0, 0);
 
         this.viewportU = Vector(this.viewportWidth, 0, 0);
         this.viewportV = Vector(0, -this.viewportHeight, 0);
@@ -459,9 +460,9 @@ class Camera {
 // Image
 
 var aspectRatio = 16 / 9;
-var width = 200;
-var samplesPerPixel = 2;
-var childRays = 2;
+var width = 300;
+var samplesPerPixel = 20;
+var childRays = 30;
 
 // World
 
@@ -473,10 +474,10 @@ var materialCenter = Lambertian(ColorTexture(Vector(0.29, 0.78, 0.89)));
 var materialRight  = Metal(                  Vector(0.84, 0.66, 0.89));
 
 //world.addHittable(Sphere(Vector( 0.0, -100.5, -1.0), 100.0, materialGround));
-world.addHittable(Sphere(Vector( 0.0, -1000.5, -1.0), 1000.0, materialGround));
-//world.addHittable(Sphere(Vector(-1.0,    0.0, -1.0),   0.5, materialLeft));
-//world.addHittable(Sphere(Vector( 0.0,    0.0, -1.0),   0.5, materialCenter));
-world.addHittable(Sphere(Vector( 1.0,    0.0, -1.0),   0.5, materialRight));
+world.addHittable(Sphere(Vector( 5.0, -1000.5, -1.0), 1000.0, materialGround));
+world.addHittable(Sphere(Vector( 4.0,    0.0, -1.0),   0.5, materialLeft));
+world.addHittable(Sphere(Vector( 5.0,    0.0, -1.0),   0.5, materialCenter));
+world.addHittable(Sphere(Vector( 6.0,    0.0, -1.0),   0.5, materialRight));
 
 // Camera
 
