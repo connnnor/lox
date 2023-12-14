@@ -1,2 +1,0 @@
-#echo java -jar target/jlox-1.0-SNAPSHOT.jar $1
-java -jar target/jlox-1.0-SNAPSHOT.jar $1
