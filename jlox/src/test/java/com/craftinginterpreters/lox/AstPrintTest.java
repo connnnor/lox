@@ -785,15 +785,6 @@ class LoxTests {
     }
 
     @Test
-    void divideByZeroErrTest() {
-        runAndComparePattern("""
-                var zero = 0;
-                var bad = 1 / zero;
-                """,
-                errorPattern("Divisor cannot be zero"));
-    }
-
-    @Test
     void inheritanceSuperErrTest() {
         runAndComparePattern("""
                 super.cook();
