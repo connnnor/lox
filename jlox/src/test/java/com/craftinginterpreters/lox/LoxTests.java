@@ -821,4 +821,159 @@ class LoxTests {
                 """,
                 runtimeErrorPattern("Undefined property 'method'"));
     }
+
+    @Test
+    void multiLineCommentTest() {
+        runDocTest("""
+            >>> print "before comment";
+            ... /*
+            ... print "middle of comment";
+            ... */
+            ... print "after comment";
+            before comment
+            after comment
+            """);
+    }
+
+    @Test
+    void unterminatedMultiLineCommentErrTest() {
+        runAndComparePattern("""
+                        /*
+                        this is a comment 
+                        *
+                        """,
+                errorPattern("Unterminated multi-line comment"));
+    }
+
+    @Test
+    void breakTest() {
+        // for
+        runDocTest("""
+            >>> var i;
+            ... for (i = 0; i < 10; i = i + 1) {
+            ...     if (i >= 4) {
+            ...         break;
+            ...     }
+            ...     print i;
+            ... }
+            0
+            1
+            2
+            3
+            """);
+        // while
+        runDocTest("""
+            >>> i = 1;
+            ... while (true) {
+            ...     if (i >  8) {
+            ...         break;
+            ...     }
+            ...     print i;
+            ...     i = i * 2;
+            ... }
+            1
+            2
+            4
+            8
+            """);
+
+        // nested
+        runDocTest("""
+            >>> i = 1;
+            ... while (true) {
+            ...     print "outer loop";
+            ...     var j = 0;
+            ...     while (true) {
+            ...         print "inner loop";
+            ...         if (j >= 2) {
+            ...             break;
+            ...         }
+            ...         j = j + 1;
+            ...     }
+            ...     if (i >= 3) {
+            ...         break;
+            ...     }
+            ...     i = i + 1;
+            ... }
+            outer loop
+            inner loop
+            inner loop
+            inner loop
+            outer loop
+            inner loop
+            inner loop
+            inner loop
+            outer loop
+            inner loop
+            inner loop
+            inner loop
+            """);
+    }
+
+    @Test
+    void breakErrTest() {
+
+        runDocTest("""
+                >>> var i;
+                ... for (i = 0; i < 10; i = i + 1) {
+                ...     if (i == 4) {
+                ...         break;
+                ...     }
+                ...     print i;
+                ... }
+                0
+                1
+                2
+                3
+                """);
+
+        runAndComparePattern("""
+                        fun bad() {
+                            break;
+                        }
+                        var i = 0;
+                        while (true) {
+                            bad();
+                        }
+                        """,
+                errorPattern("Can't break outside of a loop"));
+    }
+
+    @Test
+    void randomTest() {
+        runDocTest("""
+            >>> var r = random();
+            ... print (r >= 0 and r <= 1);
+            true
+            >>> print random;
+            <native fn>
+            """);
+    }
+
+    @Test
+    void envEnclosingScopeTest() {
+        runDocTest("""
+                >>> var global = "outside";
+                ... {
+                ...     var local = "inside";
+                ...     print global + local;
+                ... } 
+                outsideinside
+                """);
+    }
+
+    @Test
+    void envEnclosingScopeErrTest() {
+        runAndComparePattern("""
+                        fun bad() {
+                            break;
+                        }
+                        var i = 0;
+                        while (true) {
+                            bad();
+                        }
+                        """,
+                errorPattern("Can't break outside of a loop"));
+        Lox.hadError = false;
+    }
 }

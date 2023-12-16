@@ -9,9 +9,15 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack<>();
     private FunctionType currentFunction = FunctionType.NONE;
+    private LoopType currentLoop = LoopType.NONE;
 
     Resolver(Interpreter interpreter) {
         this.interpreter = interpreter;
+    }
+
+    private enum LoopType {
+        NONE,
+        WHILE
     }
 
     private enum FunctionType {
@@ -146,6 +152,14 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitBreakStmt(Stmt.Break stmt) {
+        if (currentLoop == LoopType.NONE) {
+            Lox.error(stmt.keyword, "Can't break outside of a loop.");
+        }
+        return null;
+    }
+
+    @Override
     public Void visitBlockStmt(Stmt.Block stmt) {
         beginScope();
         resolve(stmt.statements);
@@ -238,7 +252,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitReturnStmt(Stmt.Return stmt) {
         if (currentFunction == FunctionType.NONE) {
-            Lox.error(stmt.keyword, "Can't return from top-level code.");
+            Lox.error(stmt.keyword, "Can't return from top-level code");
         }
         if (stmt.value != null) {
             if (currentFunction == FunctionType.INITIALIZER) {
@@ -289,8 +303,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {
+        LoopType enclosingLoop = currentLoop;
+        currentLoop = LoopType.WHILE;
         resolve(stmt.condition);
         resolve(stmt.body);
+        currentLoop = enclosingLoop;
         return null;
     }
 }

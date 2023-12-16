@@ -4,6 +4,7 @@ import java.util.List;
 
 abstract class Stmt{
   interface Visitor<R> {
+    R visitBreakStmt(Break stmt);
     R visitBlockStmt(Block stmt);
     R visitClassStmt(Class stmt);
     R visitExpressionStmt(Expression stmt);
@@ -13,6 +14,18 @@ abstract class Stmt{
     R visitReturnStmt(Return stmt);
     R visitVarStmt(Var stmt);
     R visitWhileStmt(While stmt);
+  }
+  public static class Break extends Stmt {
+    Break(Token keyword) {
+    this.keyword = keyword;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitBreakStmt(this);
+    }
+
+    final Token keyword;
   }
   public static class Block extends Stmt {
     Block(List<Stmt> statements) {

@@ -19,6 +19,7 @@ public class Scanner {
     static {
         keywords = new HashMap<>();
         keywords.put("and",    AND);
+        keywords.put("break",  BREAK);
         keywords.put("class",  CLASS);
         keywords.put("else",   ELSE);
         keywords.put("false",  FALSE);
@@ -82,7 +83,18 @@ public class Scanner {
             case '/':
                 if (match('/')) {
                     // comment goes until end of line
-                    while (peek() != '\n' && !isAtEnd()) { advance(); }
+                    while (peek() != '\n' && !isAtEnd()) {
+                        advance();
+                    }
+                } else if (match('*')) {
+                    // multi-line comment
+                    boolean foundTerm = false;
+                    while (!isAtEnd() && !foundTerm) {
+                        foundTerm = advance() == '*' && !isAtEnd() && advance() == '/';
+                    }
+                    if (!foundTerm) {
+                        Lox.error(line, "Unterminated multi-line comment" + c);
+                    }
                 } else {
                     addToken(SLASH);
                 }
