@@ -74,11 +74,6 @@ void push(value_t value) {
   vm.stack_top++;
 }
 
-value_t peek() {
-  vm.stack_top--;
-  return *vm.stack_top;
-}
-
 value_t pop() {
   vm.stack_top--;
   return *vm.stack_top;
