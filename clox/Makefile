@@ -1,7 +1,7 @@
 TARGET=clox
 OBJECTS=main.o chunk.o memory.o debug.o value.o
 #CFLAGS = -g -Wall -O3
-CFLAGS = -g -Wall -O0
+CFLAGS = -gdwarf-4 -Wall -O0
 LDLIBS=
 CC=clang
 

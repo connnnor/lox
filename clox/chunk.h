@@ -2,8 +2,10 @@
 #define CLOX_CHUNK_H
 
 #include "common.h"
+#include "value.h"
 
 typedef enum {
+  OP_CONSTANT,
   OP_RETURN,
 } op_code_t;
 
@@ -11,10 +13,13 @@ typedef struct {
   int count;
   int capacity;
   uint8_t *code;
+  value_arr_t constants;
+  int *lines;
 } chunk_t;
 
 void init_chunk(chunk_t *ch);
 void free_chunk(chunk_t *ch);
-void write_chunk(chunk_t *ch, uint8_t byte);
+void write_chunk(chunk_t *ch, uint8_t byte, int line);
+int add_constant(chunk_t *ch, value_t value);
 
 #endif // CLOX_CHUNK_H
