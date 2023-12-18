@@ -1,4 +1,5 @@
 #include "common.h"
+#include "compiler.h"
 #include "debug.h"
 #include "vm.h"
 #include <stdio.h>
@@ -63,10 +64,9 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
-InterpretResult interpret(chunk_t *ch) {
-  vm.chunk = ch;
-  vm.ip = vm.chunk->code;
-  return run();
+InterpretResult interpret(const char *source) {
+  compile(source);
+  return INTERPRET_OK;
 }
 
 void push(value_t value) {

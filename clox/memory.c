@@ -8,7 +8,7 @@ void *reallocate(void *ptr, size_t old_size, size_t new_size) {
 
   void *out = realloc(ptr, new_size);
   if (out == NULL) {
-    exit(1);
+    exit(EXIT_MALLOC_ERROR);
   }
   return out;
 }
