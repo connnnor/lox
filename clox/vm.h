@@ -16,11 +16,11 @@ typedef enum {
   INTERPRET_OK,
   INTERPRET_COMPILE_ERROR,
   INTERPRET_RUNTIME_ERROR
-} InterpretResult;
+} interpret_result_t;
 
 void init_vm();
 void free_vm();
-InterpretResult interpret(const char *source);
+interpret_result_t interpret(const char *source);
 void push(value_t v);
 value_t pop();
 

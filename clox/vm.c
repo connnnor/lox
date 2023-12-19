@@ -19,7 +19,7 @@ void free_vm() {
 }
 
 
-static InterpretResult run() {
+static interpret_result_t run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 #define BINARY_OP(op)                                                          \
@@ -64,9 +64,22 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
-InterpretResult interpret(const char *source) {
-  compile(source);
-  return INTERPRET_OK;
+interpret_result_t interpret(const char *source) {
+  chunk_t ch;
+  init_chunk(&ch);
+
+  if (!compile(source, NULL)) {
+    free_chunk(&ch);
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  vm.chunk = &ch;
+  vm.ip = vm.chunk->code;
+
+  interpret_result_t result = run();
+
+  free_chunk(&ch);
+  return result;
 }
 
 void push(value_t value) {
