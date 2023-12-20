@@ -68,7 +68,7 @@ interpret_result_t interpret(const char *source) {
   chunk_t ch;
   init_chunk(&ch);
 
-  if (!compile(source, NULL)) {
+  if (!compile(source, &ch)) {
     free_chunk(&ch);
     return INTERPRET_COMPILE_ERROR;
   }

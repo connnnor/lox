@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #define DEBUG_TRACE_EXECUTION
+#define DEBUG_PRINT_CODE
 
 // error codes
 #define EXIT_SUCCESS 0
