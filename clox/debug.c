@@ -38,6 +38,18 @@ int disassemble_inst(chunk_t *ch, int offset) {
 
   case OP_CONSTANT:
     return constant_inst("OP_CONSTANT", ch, offset);
+  case OP_NIL:
+    return simple_inst("OP_NIL", offset);
+  case OP_TRUE:
+    return simple_inst("OP_TRUE", offset);
+  case OP_FALSE:
+    return simple_inst("OP_FALSE", offset);
+  case OP_EQUAL:
+    return simple_inst("OP_EQUAL", offset);
+  case OP_GREATER:
+    return simple_inst("OP_GREATER", offset);
+  case OP_LESS:
+    return simple_inst("OP_LESS", offset);
   case OP_ADD:
     return simple_inst("OP_ADD", offset);
   case OP_SUBTRACT:
@@ -46,6 +58,8 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return simple_inst("OP_MULTIPLY", offset);
   case OP_DIVIDE:
     return simple_inst("OP_DIVIDE", offset);
+  case OP_NOT:
+    return simple_inst("OP_NOT", offset);
   case OP_NEGATE:
     return simple_inst("OP_NEGATE", offset);
   case OP_RETURN:
