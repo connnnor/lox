@@ -1,5 +1,5 @@
 TARGET=clox
-OBJECTS=main.o compiler.o chunk.o debug.o memory.o scanner.o value.o vm.o
+OBJECTS=main.o compiler.o chunk.o debug.o memory.o scanner.o table.o object.o value.o vm.o
 #CFLAGS = -g -Wall -O3
 CFLAGS = -gdwarf-4 -Wall -O0
 CFLAGS = -gdwarf-4 -Wall -O0 -fdump-rtl-expand
