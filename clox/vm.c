@@ -1,9 +1,12 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
+#include "object.h"
+#include "memory.h"
 #include "vm.h"
 
 vm_t vm;
@@ -26,11 +29,14 @@ static void runtime_error(const char * format, ...) {
 }
 
 void init_vm() {
+  vm.objects = NULL;
+  init_table(&vm.strings);
   reset_stack();
 }
 
 void free_vm() {
-
+  free_table(&vm.strings);
+  free_objects();
 }
 
 void push(value_t value) {
@@ -49,6 +55,19 @@ static value_t peek(int distance) {
 
 static bool is_falsey(value_t value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+}
+
+static void concatenate() {
+  obj_string_t *b = AS_STRING(pop());
+  obj_string_t *a = AS_STRING(pop());
+  int length = a->length + b->length;
+  char *chars = ALLOCATE(char, length + 1);
+  memcpy(chars, a->chars, a->length);
+  memcpy(chars + a->length, b->chars, b->length);
+  chars[length] = '\0';
+
+  obj_string_t *result = take_string(chars, length);
+  push(OBJ_VAL(result));
 }
 
 static interpret_result_t run() {
@@ -94,7 +113,17 @@ static interpret_result_t run() {
     }
     case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
     case OP_LESS:     BINARY_OP(BOOL_VAL, >); break;
-    case OP_ADD:      BINARY_OP(NUMBER_VAL, +); break;
+    case OP_ADD: {
+      if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+        concatenate();
+      } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+        BINARY_OP(NUMBER_VAL, +);
+      } else {
+        runtime_error("Operands must be two numbers or two strings.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
+    }
     case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
     case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
     case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); break;

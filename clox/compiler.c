@@ -173,6 +173,14 @@ static void number() {
   emit_constant(NUMBER_VAL(value));
 }
 
+// TODO translate escape sequences in here
+static void string() {
+  // + 1 and - 2 parts trim the quotation marks
+  emit_constant(OBJ_VAL(copy_string(parser.previous.start  + 1,
+                                    parser.previous.length - 2)));
+}
+
+
 static void unary() {
   token_type_t  operator_type = parser.previous.type;
 
@@ -207,7 +215,7 @@ parse_rule_t rules[] = {
     [TOKEN_LESS]          = {NULL,     binary,  PREC_EQUALITY},
     [TOKEN_LESS_EQUAL]    = {NULL,     binary,  PREC_EQUALITY},
     [TOKEN_IDENTIFIER]    = {NULL,     NULL,    PREC_NONE},
-    [TOKEN_STRING]        = {NULL,     NULL,    PREC_NONE},
+    [TOKEN_STRING]        = {string,   NULL,    PREC_NONE},
     [TOKEN_NUMBER]        = {number,   NULL,    PREC_NONE},
     [TOKEN_AND]           = {NULL,     NULL,    PREC_NONE},
     [TOKEN_CLASS]         = {NULL,     NULL,    PREC_NONE},
