@@ -30,11 +30,13 @@ static void runtime_error(const char * format, ...) {
 
 void init_vm() {
   vm.objects = NULL;
+  init_table(&vm.globals);
   init_table(&vm.strings);
   reset_stack();
 }
 
 void free_vm() {
+  free_table(&vm.globals);
   free_table(&vm.strings);
   free_objects();
 }
@@ -73,6 +75,7 @@ static void concatenate() {
 static interpret_result_t run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(value_type, op)                                              \
   do {                                                                         \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                          \
@@ -105,6 +108,32 @@ static interpret_result_t run() {
     case OP_NIL:   push(NIL_VAL); break;
     case OP_TRUE:  push(BOOL_VAL(true)); break;
     case OP_FALSE: push(BOOL_VAL(false)); break;
+    case OP_POP:   pop(); break;
+    case OP_GET_GLOBAL: {
+      obj_string_t *name = READ_STRING();
+      value_t value;
+      if (!table_get(&vm.globals, name, &value)) {
+        runtime_error("Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      push(value);
+      break;
+    }
+    case OP_DEFINE_GLOBAL: {
+      obj_string_t *name = READ_STRING();
+      table_set(&vm.globals, name, peek(0));
+      pop();
+      break;
+    }
+    case OP_SET_GLOBAL: {
+      obj_string_t *name = READ_STRING();
+      if (table_set(&vm.globals, name, peek(0))) {
+        table_delete(&vm.globals, name);
+        runtime_error("Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
+    }
     case OP_EQUAL: {
       value_t a = pop();
       value_t b = pop();
@@ -137,15 +166,19 @@ static interpret_result_t run() {
       }
       push(NUMBER_VAL(-AS_NUMBER(pop())));
       break;
-    case OP_RETURN: {
+    case OP_PRINT:
       print_value(pop());
       printf("\n");
+      break;
+    case OP_RETURN: {
+      // Exit interpreter.
       return INTERPRET_OK;
     }
     }
   }
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }
 

@@ -26,28 +26,35 @@ C_COMPILER=clang
 endif
 
 CFLAGS = -gdwarf-4 -Wall -O0
+CFLAGS += -DNDEBUG
+#CFLAGS += -DDEBUG
 
 UNITY_ROOT = unity
 
-TARGET_BASE1=clox
-TARGET_BASE2=tests
-TARGET1 = $(TARGET_BASE1)$(TARGET_EXTENSION)
-TARGET2 = $(TARGET_BASE2)$(TARGET_EXTENSION)
+TARGET1 = clox
+TARGET2 = clox_tests
 SRC_FILES1=chunk.c  clox.c  compiler.c  debug.c  main.c  memory.c  object.c  scanner.c  table.c  value.c  vm.c
 SRC_FILES2=chunk.c  clox.c  compiler.c  debug.c  memory.c  object.c  scanner.c  table.c  value.c  vm.c $(UNITY_ROOT)/src/unity.c test/TestsHash.c
 INC_DIRS=-Isrc -I$(UNITY_ROOT)/src
 
-all: clean default
+all: release test
 
-default: $(SRC_FILES)
+default: clox
+
+release: $(TARGET1)
+
+$(TARGET1):
 	$(C_COMPILER) $(CFLAGS) $(INC_DIRS) $(SYMBOLS) $(SRC_FILES1) -o $(TARGET1)
+
+test: $(TARGET2)
+
+$(TARGET2):
 	$(C_COMPILER) $(CFLAGS) $(INC_DIRS) $(SYMBOLS) $(SRC_FILES2) -o $(TARGET2)
-####- ./$(TARGET1)
-####- ./$(TARGET2)
+	./$(TARGET2)
 
 
 clean:
-	$(CLEANUP) $(TARGET1) $(TARGET2)
+	rm -f $(TARGET1) $(TARGET2) *.o
 #
 #####
 #

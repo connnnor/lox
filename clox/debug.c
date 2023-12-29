@@ -44,6 +44,14 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return simple_inst("OP_TRUE", offset);
   case OP_FALSE:
     return simple_inst("OP_FALSE", offset);
+  case OP_POP:
+    return simple_inst("OP_POP", offset);
+  case OP_GET_GLOBAL:
+    return constant_inst("OP_GET_GLOBAL", ch, offset);
+  case OP_DEFINE_GLOBAL:
+    return constant_inst("OP_DEFINE_GLOBAL", ch, offset);
+  case OP_SET_GLOBAL:
+    return constant_inst("OP_SET_GLOBAL", ch, offset);
   case OP_EQUAL:
     return simple_inst("OP_EQUAL", offset);
   case OP_GREATER:
@@ -62,6 +70,8 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return simple_inst("OP_NOT", offset);
   case OP_NEGATE:
     return simple_inst("OP_NEGATE", offset);
+  case OP_PRINT:
+    return simple_inst("OP_PRINT", offset);
   case OP_RETURN:
     return simple_inst("OP_RETURN", offset);
   default:

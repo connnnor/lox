@@ -6,8 +6,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef DEBUG
 #define DEBUG_TRACE_EXECUTION
 #define DEBUG_PRINT_CODE
+#endif
 
 // error codes
 #define EXIT_SUCCESS 0
