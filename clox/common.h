@@ -11,6 +11,8 @@
 #define DEBUG_PRINT_CODE
 #endif
 
+#define UINT8_COUNT (UINT8_MAX + 1)
+
 // error codes
 #define EXIT_SUCCESS 0
 #define EXIT_MALLOC_ERROR 1
