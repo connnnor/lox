@@ -26,6 +26,27 @@ static int simple_inst(const char *name, int offset) {
   return offset + 1;
 }
 
+static int byte_inst(const char *name, chunk_t * ch, int offset) {
+  uint8_t slot = ch->code[offset + 1];
+  printf("%-16s %4d\n", name, slot);
+  return offset + 2;
+}
+
+static int jump_inst(const char *name, int sign, chunk_t *ch, int offset) {
+  uint16_t jump = (uint16_t) (ch->code[offset + 1] << 8);
+  jump |= ch->code[offset + 2];
+  printf("%-16s %4d -> %d\n", name, offset,
+         offset + 3 + sign * jump);
+  return offset + 3;
+}
+
+// Format is like:
+// O - Offset
+// S - Source line number
+// N - Inst Name
+// B - Instr Byte Operands
+// OFFS    S NAME                BYTE(S)
+// 0000    1 OP_CONSTANT         1 '0
 int disassemble_inst(chunk_t *ch, int offset) {
   printf("%04d ", offset);
   if (offset > 0 && ch->lines[offset] == ch->lines[offset - 1]) {
@@ -46,6 +67,10 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return simple_inst("OP_FALSE", offset);
   case OP_POP:
     return simple_inst("OP_POP", offset);
+  case OP_GET_LOCAL:
+    return byte_inst("OP_GET_LOCAL", ch, offset);
+  case OP_SET_LOCAL:
+    return byte_inst("OP_SET_LOCAL", ch, offset);
   case OP_GET_GLOBAL:
     return constant_inst("OP_GET_GLOBAL", ch, offset);
   case OP_DEFINE_GLOBAL:
@@ -72,6 +97,12 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return simple_inst("OP_NEGATE", offset);
   case OP_PRINT:
     return simple_inst("OP_PRINT", offset);
+  case OP_JUMP:
+    return jump_inst("OP_JUMP", 1, ch, offset);
+  case OP_JUMP_IF_FALSE:
+    return jump_inst("OP_JUMP_IF_FALSE", 1, ch, offset);
+  case OP_LOOP:
+    return jump_inst("OP_JUMP", -1, ch, offset);
   case OP_RETURN:
     return simple_inst("OP_RETURN", offset);
   default:

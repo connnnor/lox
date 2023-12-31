@@ -43,12 +43,12 @@ default: clox
 
 release: $(TARGET1)
 
-$(TARGET1):
+$(TARGET1): $(SRC_FILES1)
 	$(C_COMPILER) $(CFLAGS) $(INC_DIRS) $(SYMBOLS) $(SRC_FILES1) -o $(TARGET1)
 
 test: $(TARGET2)
 
-$(TARGET2):
+$(TARGET2): $(SRC_FILES2)
 	$(C_COMPILER) $(CFLAGS) $(INC_DIRS) $(SYMBOLS) $(SRC_FILES2) -o $(TARGET2)
 	./$(TARGET2)
 

@@ -119,6 +119,22 @@ static void emit_bytes(uint8_t byte1, uint8_t byte2) {
   emit_byte(byte1);
   emit_byte(byte2);
 }
+static void emit_loop(int loop_start) {
+  emit_byte(OP_LOOP);
+
+  int offset = current_chunk()->count - loop_start + 2;
+  if (offset > UINT16_MAX) error("Loop body too large.");
+
+  emit_byte((offset >> 8) & 0xff);
+  emit_byte(offset & 0xff);
+}
+
+static int emit_jump(uint8_t instruction) {
+  emit_byte(instruction);
+  emit_byte(0xff);
+  emit_byte(0xff);
+  return current_chunk()->count - 2;
+}
 
 static void emit_return() {
   emit_byte(OP_RETURN);
@@ -139,6 +155,18 @@ static void emit_constant(value_t value) {
   emit_bytes(OP_CONSTANT, make_constant(value));
 }
 
+static void patch_jump(int offset) {
+  // -2 to adjust for the bytecode for the jump offset itself
+  int jump = current_chunk()->count - offset - 2;
+
+  if (jump > UINT16_MAX) {
+    error("Too much code to jump over");
+  }
+
+  current_chunk()->code[offset] = (jump >> 8) & 0xff;
+  current_chunk()->code[offset + 1] = jump & 0xff;
+}
+
 static void init_compiler(compiler_t *compiler) {
   compiler->local_count = 0;
   compiler->scope_depth = 0;
@@ -157,7 +185,24 @@ static uint8_t identifier_constant(token_t *name) {
 
 static bool identifiers_equal(token_t *a, token_t *b) {
   if (a->length != b->length) return false;
-  return memcmp(a->start, b->start, a->length);
+  return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolve_local(compiler_t *compiler, token_t *name) {
+  // walk list of locals that are currently in scope.
+  // iterate backwards so that we find the **last** declared variable with
+  // that identifier. this ensures shadowing is handled correctly
+  for (int i = compiler->local_count -1; i >= 0; i--) {
+    local_t *local = &compiler->locals[i];
+    if (identifiers_equal(name, &local->name)) {
+      if (local->depth == -1) {
+        error("Can't read local variable in its own initializer.");
+      }
+      return i;
+    }
+  }
+
+  return -1;
 }
 
 static void add_local(token_t name) {
@@ -168,7 +213,7 @@ static void add_local(token_t name) {
 
   local_t *local = &current->locals[current->local_count++];
   local->name = name;
-  local->depth = current->scope_depth;
+  local->depth = -1;
 }
 
 static void declare_variable() {
@@ -197,12 +242,26 @@ static uint8_t parse_variable(const char *error_message) {
   return identifier_constant(&parser.previous);
 }
 
+static void mark_initialized() {
+  current->locals[current->local_count - 1].depth = current->scope_depth;
+}
+
 static void define_variable(uint8_t global) {
   if (current->scope_depth > 0) {
+    mark_initialized();
     return;
   }
 
   emit_bytes(OP_DEFINE_GLOBAL, global);
+}
+
+static void and_(bool can_assign) {
+  int end_jump = emit_jump(OP_JUMP_IF_FALSE);
+
+  emit_byte(OP_POP);
+  parse_precedence(PREC_AND);
+
+  patch_jump(end_jump);
 }
 
 static void end_compiler() {
@@ -233,6 +292,18 @@ static void expression() {
   parse_precedence(PREC_ASSIGNMENT);
 }
 
+static void var_declaration() {
+  uint8_t global = parse_variable("Expect variable name.");
+
+  if (match(TOKEN_EQUAL)) {
+    expression();
+  } else {
+    emit_byte(OP_NIL);
+  }
+  consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  define_variable(global);
+}
+
 static void block() {
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
     declaration();
@@ -247,10 +318,88 @@ static void expression_statement() {
   emit_byte(OP_POP);
 }
 
+static void for_statement() {
+  begin_scope();
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  if (match(TOKEN_SEMICOLON)) {
+    // no initializer
+  } else if (match(TOKEN_VAR)) {
+    var_declaration();
+  } else {
+    expression_statement();
+  }
+
+  int loop_start = current_chunk()->count;
+  int exit_jump = -1;
+  if (!match(TOKEN_SEMICOLON)) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+
+    // jump out of loop if the condition is false
+    exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+    emit_byte(OP_POP); // condition
+  }
+
+  if (!match(TOKEN_RIGHT_PAREN)) {
+    int body_jump = emit_jump(OP_JUMP);
+    int increment_start = current_chunk()->count;
+    expression();
+    emit_byte(OP_POP);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    emit_loop(loop_start);
+    loop_start = increment_start;
+    patch_jump(body_jump);
+  }
+
+  statement();
+  emit_loop(loop_start);
+  if (exit_jump != -1) {
+    patch_jump(exit_jump);
+    emit_byte(OP_POP);
+  }
+
+  end_scope();
+}
+
+static void if_statement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  // emit jump instruction first with placeholder offset operand
+  // compile the body (now we know offset)
+  int then_jump = emit_jump(OP_JUMP_IF_FALSE);
+  emit_byte(OP_POP);
+  statement();
+
+  int else_jump = emit_jump(OP_JUMP);
+  // go back and patch jump instruction with actual offset
+  patch_jump(then_jump);
+  emit_byte(OP_POP);
+
+  if (match(TOKEN_ELSE)) statement();
+  patch_jump(else_jump);
+}
+
 static void print_statement() {
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emit_byte(OP_PRINT);
+}
+static void while_statement() {
+  int loop_start = current_chunk()->count;
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+  emit_byte(OP_POP);
+  statement();
+  emit_loop(loop_start);
+
+  patch_jump(exit_jump);
+  emit_byte(OP_POP);
 }
 
 static void synchronize() {
@@ -273,18 +422,6 @@ static void synchronize() {
   }
 }
 
-static void var_declaration() {
-  uint8_t global = parse_variable("Expect variable name.");
-
-  if (match(TOKEN_EQUAL)) {
-    expression();
-  } else {
-    emit_byte(OP_NIL);
-  }
-  consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
-  define_variable(global);
-}
-
 
 static void declaration() {
   if (match(TOKEN_VAR)) {
@@ -299,6 +436,12 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     print_statement();
+  } else if (match(TOKEN_FOR)) {
+    for_statement();
+  } else if (match(TOKEN_IF)) {
+    if_statement();
+  } else if (match(TOKEN_WHILE)) {
+    while_statement();
   } else if (match(TOKEN_LEFT_BRACE)) {
     begin_scope();
     block();
@@ -348,6 +491,16 @@ static void number(bool can_assign) {
   emit_constant(NUMBER_VAL(value));
 }
 
+static void or_(bool can_assign) {
+  int else_jump = emit_jump(OP_JUMP_IF_FALSE);
+  int end_jump = emit_jump(OP_JUMP);
+  patch_jump(else_jump);
+  emit_byte(OP_POP);
+
+  parse_precedence(PREC_OR);
+  patch_jump(end_jump);
+}
+
 // TODO translate escape sequences in here
 static void string(bool can_assign) {
   // + 1 and - 2 parts trim the quotation marks
@@ -356,12 +509,23 @@ static void string(bool can_assign) {
 }
 
 static void named_variable(token_t name, bool can_assign) {
-  uint8_t arg = identifier_constant(&name);
+  uint8_t get_op, set_op;
+  // try to find a local with the given name.
+  // otherwise, assume it's a global
+  int arg = resolve_local(current, &name);
+  if (arg != -1) {
+    get_op = OP_GET_LOCAL;
+    set_op = OP_SET_LOCAL;
+  } else {
+    arg = identifier_constant(&name);
+    get_op = OP_GET_GLOBAL;
+    set_op = OP_SET_GLOBAL;
+  }
   if (can_assign && match(TOKEN_EQUAL)) {
     expression();
-    emit_bytes(OP_SET_GLOBAL, arg);
+    emit_bytes(set_op, (uint8_t) arg);
   } else {
-    emit_bytes(OP_GET_GLOBAL, arg);
+    emit_bytes(get_op, (uint8_t) arg);
   }
 }
 
@@ -405,7 +569,7 @@ parse_rule_t rules[] = {
     [TOKEN_IDENTIFIER]    = {variable, NULL,    PREC_NONE},
     [TOKEN_STRING]        = {string,   NULL,    PREC_NONE},
     [TOKEN_NUMBER]        = {number,   NULL,    PREC_NONE},
-    [TOKEN_AND]           = {NULL,     NULL,    PREC_NONE},
+    [TOKEN_AND]           = {NULL,     and_,    PREC_AND},
     [TOKEN_CLASS]         = {NULL,     NULL,    PREC_NONE},
     [TOKEN_ELSE]          = {NULL,     NULL,    PREC_NONE},
     [TOKEN_FALSE]         = {literal,  NULL,    PREC_NONE},
@@ -413,7 +577,7 @@ parse_rule_t rules[] = {
     [TOKEN_FOR]           = {NULL,     NULL,    PREC_NONE},
     [TOKEN_IF]            = {NULL,     NULL,    PREC_NONE},
     [TOKEN_NIL]           = {literal,  NULL,    PREC_NONE},
-    [TOKEN_OR]            = {NULL,     NULL,    PREC_NONE},
+    [TOKEN_OR]            = {NULL,     or_,     PREC_OR},
     [TOKEN_PRINT]         = {NULL,     NULL,    PREC_NONE},
     [TOKEN_RETURN]        = {NULL,     NULL,    PREC_NONE},
     [TOKEN_SUPER]         = {NULL,     NULL,    PREC_NONE},
