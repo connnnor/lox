@@ -141,7 +141,7 @@ static interpret_result_t run() {
       break;
     }
     case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
-    case OP_LESS:     BINARY_OP(BOOL_VAL, >); break;
+    case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
     case OP_ADD: {
       if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
         concatenate();
