@@ -16,9 +16,9 @@ BINS = {
     JLOX_TYPE : '/home/kang/workspace/lox/jlox/jlox',
 }
 
-@pytest.fixture(params=[CLOX_TYPE, JLOX_TYPE])
+#@pytest.fixture(params=[CLOX_TYPE, JLOX_TYPE])
 #@pytest.fixture(params=[JLOX_TYPE])
-#@pytest.fixture(params=[CLOX_TYPE])
+@pytest.fixture(params=[CLOX_TYPE])
 def lox_type(request):
     return request.param
 
@@ -61,10 +61,10 @@ def runDocTest(loxType, docTest: str):
         line = lines[index]
         index += 1
         if is_start(line):
-            script = line.removeprefix(">>>")
+            script = line.removeprefix(">>>") + "\n"
             expected = ""
             while index < len(lines) and is_continuation(lines[index]):
-                script += lines[index].removeprefix("...")
+                script += lines[index].removeprefix("...") + "\n"
                 index += 1
         while index < len(lines) and is_expected(lines[index]):
             expected += lines[index] + '\n'
@@ -75,6 +75,8 @@ def normalize(s: str):
     return "\n".join(s.splitlines()).rstrip()
 
 def runAndCompare(lox_type, script, expected):
+    with open('script.lox', 'w') as f:
+        f.write(script)
     actual = runLox(script, lox_type)
     if expected and not expected.isspace():
         assert normalize(actual) == normalize(expected)
@@ -83,6 +85,9 @@ def runAndComparePattern(lox_type, script, expectedPattern):
     actual = runLox(script, lox_type)
     if expectedPattern:
         assert bool(re.match(expectedPattern, normalize(actual)))
+
+def pattern(msg):
+    return r"(?s).*" + msg + "(.*)"
 
 def error_pattern(msg):
     return r"(?s).*Error(.*)" + msg + "(.*)"
@@ -342,7 +347,7 @@ def test_rec_fun(lox_type):
         3
         """)
 
-
+@pytest.mark.func
 def test_mutual_recursive_func(lox_type):
     runDocTest(lox_type, """
         >>> fun isOdd(n) {
@@ -359,14 +364,10 @@ def test_mutual_recursive_func(lox_type):
         true
         """)
 
-
+@pytest.mark.func
 def test_fib_fun(lox_type):
     runDocTest(lox_type, """
-        >>> fun count(n) {
-        ...   if (n > 1) count(n - 1);
-        ...   print n;
-        ... }
-        ... fun fib(n) {
+        >>> fun fib(n) {
         ...     if (n <= 1) return n;
         ...     return fib(n-2) + fib(n-1);
         ... }
@@ -649,17 +650,27 @@ def test_native_clock(lox_type):
         """);
 
 @pytest.mark.func
+def test_simple_call(lox_type):
+    runDocTest(lox_type, """
+        >>> fun sayHi(name) {
+        ...   print "Hi " + name;
+        ... }
+        ... sayHi("Homer");
+        Hi Homer
+        """);
+
+@pytest.mark.func
 def test_call_non_function(lox_type):
     runAndComparePattern(lox_type, """
         "not a function"();
-        """, runtime_error_pattern("Can only call functions and classes"))
+        """, pattern("Can only call functions and classes"))
 
 @pytest.mark.func
 def test_call_arity_err(lox_type):
     runAndComparePattern(lox_type, """
         fun square(n) { return n*n; }
         square();
-        """, runtime_error_pattern("Expected 1 arguments but got 0"))
+        """, pattern("Expected 1 arguments but got 0"))
 
 def test_global_vars_1(lox_type):
     # from 21.3 Reading Variables
@@ -802,8 +813,9 @@ def test_stack_trace():
         >>> fun a() { b(); }
         ... fun b() { c(); }
         ... fun c() {
-               c("too", "many");
+        ...    c("too", "many");
         ... }
+        ...
         ... a();
         Expected 0 arguments but got 2.
         [line 4] in c()

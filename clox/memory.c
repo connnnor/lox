@@ -16,6 +16,15 @@ void *reallocate(void *ptr, size_t old_size, size_t new_size) {
 
 static void free_object(obj_t *object) {
   switch (object->type) {
+  case OBJ_FUNCTION: {
+    obj_function_t *function = (obj_function_t *)object;
+    free_chunk(&function->chunk);
+    FREE(obj_function_t, function);
+    break;
+  }
+  case OBJ_NATIVE:
+    FREE(obj_native_t , object);
+    break;
   case OBJ_STRING: {
     obj_string_t *string = (obj_string_t *)object;
     FREE_ARRAY(char, string->chars, string->length);

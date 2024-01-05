@@ -103,6 +103,8 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return jump_inst("OP_JUMP_IF_FALSE", 1, ch, offset);
   case OP_LOOP:
     return jump_inst("OP_JUMP", -1, ch, offset);
+  case OP_CALL:
+    return byte_inst("OP_CALL", ch, offset);
   case OP_RETURN:
     return simple_inst("OP_RETURN", offset);
   default:
