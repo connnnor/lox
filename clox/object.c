@@ -25,9 +25,10 @@ obj_function_t *new_function() {
   return function;
 }
 
-obj_native_t *new_native(native_fn_t *function) {
+obj_native_t *new_native(native_fn_t *function, int arity) {
   obj_native_t *native = ALLOCATE_OBJ(obj_native_t, OBJ_NATIVE);
   native->function = function;
+  native->arity = arity;
   return native;
 }
 

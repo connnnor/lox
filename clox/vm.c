@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,8 +13,18 @@
 
 vm_t vm;
 
+static void runtime_error(const char * format, ...);
+
 static value_t clock_native(int arg_count, value_t *args) {
   return NUMBER_VAL((double) clock() / CLOCKS_PER_SEC);
+}
+
+static value_t floor_native(int arg_count, value_t *args) {
+  return NUMBER_VAL((double) floor((double) AS_NUMBER(args[0])));
+}
+
+static value_t rand_native(int arg_count, value_t *args) {
+  return NUMBER_VAL((double) rand() / (double) (RAND_MAX));
 }
 
 static void reset_stack() {
@@ -45,12 +56,25 @@ static void runtime_error(const char * format, ...) {
   reset_stack();
 }
 
-static void define_native(const char *name, native_fn_t function) {
+static void define_native(const char *name, native_fn_t function, int arity) {
   push(OBJ_VAL(copy_string(name, (int)strlen(name))));
-  push(OBJ_VAL(new_native(function)));
+  push(OBJ_VAL(new_native(function, arity)));
   table_set(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
   pop();
   pop();
+}
+
+static bool call_native(obj_native_t *native, int arg_count) {
+  if (arg_count != native->arity) {
+    runtime_error("Expected %d arguments but got %d.",
+                  native->arity, arg_count);
+    return false;
+  }
+
+  value_t result = native->function(arg_count, vm.stack_top - arg_count);
+  vm.stack_top -= arg_count + 1;
+  push(result);
+  return true;
 }
 
 void init_vm() {
@@ -60,7 +84,9 @@ void init_vm() {
   init_table(&vm.globals);
   init_table(&vm.strings);
 
-  define_native("clock", clock_native);
+  define_native("clock", clock_native, 0);
+  define_native("floor", floor_native, 1);
+  define_native("rand", rand_native, 0);
 }
 
 void free_vm() {
@@ -108,11 +134,7 @@ static bool call_value(value_t callee, int arg_count) {
     case OBJ_FUNCTION:
       return call(AS_FUNCTION(callee), arg_count);
     case OBJ_NATIVE: {
-      native_fn_t native = AS_NATIVE(callee);
-      value_t result = native(arg_count, vm.stack_top - arg_count);
-      vm.stack_top -= arg_count + 1;
-      push(result);
-      return true;
+      return call_native(AS_NATIVE(callee), arg_count);
     }
     default:
       break; // non-callable object type.

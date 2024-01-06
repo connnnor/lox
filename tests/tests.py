@@ -650,6 +650,21 @@ def test_native_clock(lox_type):
         """);
 
 @pytest.mark.func
+def test_native_arity_err(lox_type):
+    runAndComparePattern(lox_type, """
+        clock(999);
+        """,
+        pattern("Expected 0 arguments but got 1"))
+    runAndComparePattern(lox_type, """
+        floor();
+        """,
+        pattern("Expected 1 arguments but got 0"))
+    runAndComparePattern(lox_type, """
+        rand(1, 2, "aa");
+        """,
+        pattern("Expected 0 arguments but got 3"))
+
+@pytest.mark.func
 def test_simple_call(lox_type):
     runDocTest(lox_type, """
         >>> fun sayHi(name) {
