@@ -41,10 +41,8 @@ static void runtime_error(const char * format, ...) {
 
   for (int i = vm.frame_count - 1; i >= 0; i--) {
     call_frame_t *frame = &vm.frames[i];
-    obj_function_t *function = frame->function;
-
-    size_t instruction = frame->ip - frame->function->chunk.code - 1;
-    int line = frame->function->chunk.lines[instruction];
+    obj_function_t *function = frame->closure->function;
+    size_t instruction = frame->ip - frame->closure->function->chunk.code - 1;
     fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
     if (function->name == NULL) {
       fprintf(stderr, "script\n");
@@ -86,7 +84,7 @@ void init_vm() {
 
   define_native("clock", clock_native, 0);
   define_native("floor", floor_native, 1);
-  define_native("rand", rand_native, 0);
+  define_native("random", rand_native, 0);
 }
 
 void free_vm() {
@@ -109,10 +107,10 @@ static value_t peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-static bool call(obj_function_t *function, int arg_count) {
-  if (arg_count != function->arity) {
+static bool call(obj_closure_t *closure, int arg_count) {
+  if (arg_count != closure->function->arity) {
     runtime_error("Expected %d arguments but got %d.",
-                  function->arity, arg_count);
+                  closure->function->arity, arg_count);
     return false;
   }
 
@@ -122,8 +120,8 @@ static bool call(obj_function_t *function, int arg_count) {
   }
 
   call_frame_t *frame = &vm.frames[vm.frame_count++];
-  frame->function = function;
-  frame->ip = function->chunk.code;
+  frame->closure = closure;
+  frame->ip = closure->function->chunk.code;
   frame->slots = vm.stack_top - arg_count - 1;
   return true;
 }
@@ -131,8 +129,8 @@ static bool call(obj_function_t *function, int arg_count) {
 static bool call_value(value_t callee, int arg_count) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
-    case OBJ_FUNCTION:
-      return call(AS_FUNCTION(callee), arg_count);
+    case OBJ_CLOSURE:
+      return call(AS_CLOSURE(callee), arg_count);
     case OBJ_NATIVE: {
       return call_native(AS_NATIVE(callee), arg_count);
     }
@@ -170,7 +168,7 @@ static interpret_result_t run() {
    (uint16_t) ((frame->ip[-2] << 8) | frame->ip[-1]))
 
 #define READ_CONSTANT() \
-  (frame->function->chunk.constants.values[READ_BYTE()])
+  (frame->closure->function->chunk.constants.values[READ_BYTE()])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(value_type, op)                                              \
@@ -193,8 +191,8 @@ static interpret_result_t run() {
       printf(" ]");
     }
     printf("\n");
-    disassemble_inst(&frame->function->chunk,
-                     (int) (frame->ip - frame->function->chunk.code));
+    disassemble_inst(&frame->closure->function->chunk,
+                     (int) (frame->ip - frame->closure->function->chunk.code));
 #endif
     uint8_t inst;
     switch (inst = READ_BYTE()) {
@@ -301,6 +299,12 @@ static interpret_result_t run() {
       frame->ip -= offset;
       break;
     }
+    case OP_CLOSURE: {
+      obj_function_t *function = AS_FUNCTION(READ_CONSTANT());
+      obj_closure_t *closure = new_closure(function);
+      push(OBJ_VAL(closure));
+      break;
+    }
     case OP_RETURN: {
       value_t result = pop();
       vm.frame_count--;
@@ -328,7 +332,10 @@ interpret_result_t interpret(const char *source) {
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  call(function, 0);
+  obj_closure_t *closure = new_closure(function);
+  pop();
+  push(OBJ_VAL(closure));
+  call(closure, 0);
 
   return run();
 }

@@ -107,6 +107,14 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return byte_inst("OP_CALL", ch, offset);
   case OP_RETURN:
     return simple_inst("OP_RETURN", offset);
+  case OP_CLOSURE: {
+    offset++;
+    uint8_t constant = ch->code[offset++];
+    printf("%-16s %4d ", "OP_CLOSURE", constant);
+    print_value(ch->constants.values[constant]);
+    printf("\n");
+    return offset;
+  }
   default:
     printf("Unknown opcode %d\n", inst);
     return offset + 1;

@@ -126,6 +126,7 @@ static void emit_bytes(uint8_t byte1, uint8_t byte2) {
   emit_byte(byte1);
   emit_byte(byte2);
 }
+
 static void emit_loop(int loop_start) {
   emit_byte(OP_LOOP);
 
@@ -377,7 +378,7 @@ static void function(function_type_t type) {
   block();
 
   obj_function_t *function = end_compiler();
-  emit_bytes(OP_CONSTANT, make_constant(OBJ_VAL(function)));
+  emit_bytes(OP_CLOSURE, make_constant(OBJ_VAL(function)));
 }
 
 static void fun_declaration() {
