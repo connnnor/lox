@@ -16,9 +16,9 @@ BINS = {
     JLOX_TYPE : '/home/kang/workspace/lox/jlox/jlox',
 }
 
-#@pytest.fixture(params=[CLOX_TYPE, JLOX_TYPE])
+@pytest.fixture(params=[CLOX_TYPE, JLOX_TYPE])
 #@pytest.fixture(params=[JLOX_TYPE])
-@pytest.fixture(params=[CLOX_TYPE])
+#@pytest.fixture(params=[CLOX_TYPE])
 def lox_type(request):
     return request.param
 
@@ -660,7 +660,7 @@ def test_native_arity_err(lox_type):
         """,
         pattern("Expected 1 arguments but got 0"))
     runAndComparePattern(lox_type, """
-        rand(1, 2, "aa");
+        random(1, 2, "aa");
         """,
         pattern("Expected 0 arguments but got 3"))
 
@@ -849,6 +849,129 @@ def test_no_return(lox_type):
         Do stuff
         nil
         """)
+
+@pytest.mark.closure
+def test_closure(lox_type):
+    runDocTest(lox_type, """
+        >>> var x = "global";
+        ... fun outer() {
+        ...   var x = "inner";
+        ...   fun inner() {
+        ...     print x;
+        ...   }
+        ...   inner();
+        ... }
+        ... outer();
+        inner
+        """)
+    runDocTest(lox_type, """
+        >>> fun outer() {
+        ...   var x = "outside";
+        ...   fun inner() {
+        ...     print x;
+        ...   }
+        ...   inner();
+        ... }
+        ... outer();
+        outside
+        """)
+
+@pytest.mark.closure
+def test_closure_diff_values(lox_type):
+    runDocTest(lox_type, """
+        >>> fun makeClosure(value) {
+        ...   fun closure() {
+        ...     print value;
+        ...   }
+        ...   return closure;
+        ... }
+        ...
+        ... var doughnut = makeClosure("doughnut");
+        ... var bagel = makeClosure("bagel");
+        ... doughnut();
+        ... bagel();
+        doughnut
+        bagel
+        """)
+
+@pytest.mark.closure
+def test_closure_up_value(lox_type):
+    runDocTest(lox_type, """
+        >>> fun outer() {
+        ...   var x = 1;
+        ...   x = 2;
+        ...   fun inner() {
+        ...     print x;
+        ...   }
+        ...   inner();
+        ... }
+        ... outer();
+        2
+        """)
+
+@pytest.mark.closure
+def test_closure_devious(lox_type):
+    runDocTest(lox_type, """
+        >>> fun outer() {
+        ...   var x = "value";
+        ...   fun middle() {
+        ...     fun inner() {
+        ...       print x;
+        ...     }
+        ... 
+        ...     print "create inner closure";
+        ...     return inner;
+        ...   }
+        ... 
+        ...   print "return from outer";
+        ...   return middle;
+        ... }
+        ... var mid = outer();
+        ... var in  = mid();
+        ... in();
+        return from outer
+        create inner closure
+        value
+        """)
+
+@pytest.mark.closure
+def test_closed_upvalues(lox_type):
+    runDocTest(lox_type, """
+        >>> fun outer() {
+        ...   var x = "outside";
+        ...   fun inner() {
+        ...     print x;
+        ...   } 
+        ...   return inner;
+        ... }
+        ... 
+        ... var closure = outer();
+        ... closure();
+        outside
+        """)
+
+@pytest.mark.closure
+def test_closure_var_or_value(lox_type):
+    runDocTest(lox_type, """
+        >>> var globalSet;
+        ... var globalGet;
+        ... 
+        ... fun main() {
+        ...   var a = "initial";
+        ... 
+        ...   fun set() { a = "updated"; }
+        ...   fun get() { print a; }
+        ... 
+        ...   globalSet = set;
+        ...   globalGet = get;
+        ... }
+        ... 
+        ... main();
+        ... globalSet();
+        ... globalGet();
+        updated
+        """)
+
 
 if __name__ == "__main__":
     runLox("1 == 0;")
