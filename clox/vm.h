@@ -21,6 +21,7 @@ typedef struct {
   value_t *stack_top;
   table_t globals;
   table_t strings;
+  obj_upvalue_t *open_upvalues;
   obj_t *objects;
 } vm_t;
 

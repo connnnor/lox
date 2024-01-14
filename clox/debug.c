@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "debug.h"
+#include "object.h"
 #include "chunk.h"
 #include "value.h"
 
@@ -77,6 +78,10 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return constant_inst("OP_DEFINE_GLOBAL", ch, offset);
   case OP_SET_GLOBAL:
     return constant_inst("OP_SET_GLOBAL", ch, offset);
+  case OP_GET_UPVALUE:
+    return byte_inst("OP_GET_UPVALUE", ch, offset);
+  case OP_SET_UPVALUE:
+    return byte_inst("OP_SET_UPVALUE", ch, offset);
   case OP_EQUAL:
     return simple_inst("OP_EQUAL", offset);
   case OP_GREATER:
@@ -105,6 +110,8 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return jump_inst("OP_JUMP", -1, ch, offset);
   case OP_CALL:
     return byte_inst("OP_CALL", ch, offset);
+  case OP_CLOSE_UPVALUE:
+    return simple_inst("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
     return simple_inst("OP_RETURN", offset);
   case OP_CLOSURE: {
@@ -113,6 +120,13 @@ int disassemble_inst(chunk_t *ch, int offset) {
     printf("%-16s %4d ", "OP_CLOSURE", constant);
     print_value(ch->constants.values[constant]);
     printf("\n");
+    obj_function_t *function = AS_FUNCTION(ch->constants.values[constant]);
+    for (int j = 0; j < function->upvalue_count; j++) {
+      int is_local = ch->code[offset++];
+      int index = ch->code[offset++];
+      printf("%04d      |                     %s %d\n",
+             offset - 2, is_local ? "local" : "upvalue", index);
+    }
     return offset;
   }
   default:

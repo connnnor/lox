@@ -18,14 +18,23 @@ static obj_t *allocate_object(size_t size, obj_type_t type) {
 }
 
 obj_closure_t *new_closure(obj_function_t *function) {
+  obj_upvalue_t **upvalues = ALLOCATE(obj_upvalue_t*, function->upvalue_count);
+
+  for (int i = 0; i < function->upvalue_count; i++) {
+    upvalues[i] = NULL;
+  }
+
   obj_closure_t *closure = ALLOCATE_OBJ(obj_closure_t, OBJ_CLOSURE);
   closure->function = function;
+  closure->upvalues = upvalues;
+  closure->upvalue_count = function->upvalue_count;
   return closure;
 }
 
 obj_function_t *new_function() {
   obj_function_t *function = ALLOCATE_OBJ(obj_function_t, OBJ_FUNCTION);
   function->arity = 0;
+  function->upvalue_count = 0;
   function->name = NULL;
   init_chunk(&function->chunk);
   return function;
@@ -79,6 +88,14 @@ obj_string_t *copy_string(const char *chars, int length) {
   return allocate_string(heap_chars, length, hash);
 }
 
+obj_upvalue_t *new_upvalue(value_t *slot) {
+  obj_upvalue_t *upvalue = ALLOCATE_OBJ(obj_upvalue_t, OBJ_UPVALUE);
+  upvalue->closed = NIL_VAL;
+  upvalue->location = slot;
+  upvalue->next = NULL;
+  return upvalue;
+}
+
 static void print_function(obj_function_t *function) {
   if (function->name == NULL) {
     printf("<script>");
@@ -100,6 +117,10 @@ void print_object(value_t value) {
     break;
   case OBJ_STRING:
     printf("%s", AS_CSTRING(value));
+    break;
+  case OBJ_UPVALUE:
+    // will never actually execute since end user cannot access them directly
+    printf("upvalue");
     break;
   }
 }

@@ -30,6 +30,7 @@ static value_t rand_native(int arg_count, value_t *args) {
 static void reset_stack() {
   vm.stack_top = vm.stack;
   vm.frame_count = 0;
+  vm.open_upvalues = NULL;
 }
 
 static void runtime_error(const char * format, ...) {
@@ -142,6 +143,46 @@ static bool call_value(value_t callee, int arg_count) {
   return false;
 }
 
+// 3 reasons we exit the loop here:
+// 1. the local slot we stopped at is the slot we're looking for
+// 2. we ran out of upvalues to search
+// 3. we found an upvalue whose local slot is below the one we're looking for
+static obj_upvalue_t *capture_upvalue(value_t *local) {
+  obj_upvalue_t *prev_upvalue = NULL;
+  obj_upvalue_t *upvalue = vm.open_upvalues;
+  while (upvalue != NULL && upvalue->location > local) {
+    prev_upvalue = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != NULL && upvalue->location == local) {
+    return upvalue;
+  }
+
+  obj_upvalue_t *created_upvalue = new_upvalue(local);
+  created_upvalue->next = upvalue;
+
+  if (prev_upvalue == NULL) {
+    vm.open_upvalues = created_upvalue;
+  } else {
+    prev_upvalue->next = created_upvalue;
+  }
+
+  return created_upvalue;
+}
+
+// accepts a pointer to a stack slot
+// closes every open upvalue it can find that points to that slot
+// or any slot above it on the stack
+static void close_upvalues(value_t *last) {
+  while(vm.open_upvalues != NULL && vm.open_upvalues->location >= last) {
+    obj_upvalue_t *upvalue = vm.open_upvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    vm.open_upvalues = upvalue->next;
+  }
+}
+
 static bool is_falsey(value_t value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
@@ -246,6 +287,16 @@ static interpret_result_t run() {
       push(BOOL_VAL(values_equal(a, b)));
       break;
     }
+    case OP_GET_UPVALUE: {
+      uint8_t slot = READ_BYTE();
+      push(*frame->closure->upvalues[slot]->location);
+      break;
+    }
+    case OP_SET_UPVALUE: {
+      uint8_t slot = READ_BYTE();
+      *frame->closure->upvalues[slot]->location = peek(0);
+      break;
+    }
     case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
     case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
     case OP_ADD: {
@@ -303,10 +354,20 @@ static interpret_result_t run() {
       obj_function_t *function = AS_FUNCTION(READ_CONSTANT());
       obj_closure_t *closure = new_closure(function);
       push(OBJ_VAL(closure));
+      for (int i = 0; i < closure->upvalue_count; i++) {
+        uint8_t is_local = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        if (is_local) {
+          closure->upvalues[i] = capture_upvalue(frame->slots + index);
+        } else {
+          closure->upvalues[i] = frame->closure->upvalues[index];
+        }
+      }
       break;
     }
     case OP_RETURN: {
       value_t result = pop();
+      close_upvalues(frame->slots);
       vm.frame_count--;
       if (vm.frame_count == 0) {
         pop();

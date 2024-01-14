@@ -89,6 +89,9 @@ def runAndComparePattern(lox_type, script, expectedPattern):
 def pattern(msg):
     return r"(?s).*" + msg + "(.*)"
 
+def contains(msg):
+    return r"(?s).*" + msg + "(.*)"
+
 def error_pattern(msg):
     return r"(?s).*Error(.*)" + msg + "(.*)"
 
@@ -935,6 +938,21 @@ def test_closure_devious(lox_type):
         """)
 
 @pytest.mark.closure
+def test_closure_simple(lox_type):
+    runDocTest(lox_type, """
+        >>> fun outer() {
+        ...   var x = "outside";
+        ...   fun inner() {
+        ...     print x;
+        ...   } 
+        ...   inner();
+        ... }
+        ... outer();
+        outside
+        """)
+
+
+@pytest.mark.closure
 def test_closed_upvalues(lox_type):
     runDocTest(lox_type, """
         >>> fun outer() {
@@ -972,6 +990,66 @@ def test_closure_var_or_value(lox_type):
         updated
         """)
 
+# should add a test for the sibling upvalue scenario mentioned in 
+# ch 25.4.2 closing upvalues
+#@pytest.mark.closure
+#def test_upvalue_is_ref_to_var(lox_type):
+#    runDocTest(lox_type, """
+#        >>> {
+#        ...   var a = 1;
+#        ...   fun f() {
+#        ...     print a;
+#        ...   }
+#        ...   var b = 2;
+#        ...   fun g() {
+#        ...     print b;
+#        ...   }
+#        ...   var c = 3;
+#        ...   fun h() {
+#        ...     print c;
+#        ...   }
+#        ... }
+#    """)
+
+@pytest.mark.closure
+def test_upvalue_is_ref_to_var(lox_type):
+    runDocTest(lox_type, """
+        >>> fun outer() {
+        ...   var x = "before";
+        ...   fun inner() {
+        ...     x = "assigned";
+        ...   }
+        ...   inner();
+        ...   print x;
+        ... }
+        ... outer();
+        assigned
+    """)
+
+@pytest.mark.skip(reason="no way of currently testing this")
+# from 25.2.2 flattening upvalues
+def test_closure_disasm():
+    expected = """
+    0004    9 OP_CLOSURE          2 <fn inner>
+    0006      |                     upvalue 0
+    0008      |                     local 1
+    0010      |                     upvalue 1
+    0012      |                     local 2
+    """
+    script = """
+        fun outer() {
+          var a = 1;
+          var b = 2;
+          fun middle() {
+            var c = 3;
+            var d = 4;
+            fun inner() {
+              print a + c + b + d;
+            }
+          }
+        }
+    """
+    runAndComparePattern(lox_type, script, contains(expected))
 
 if __name__ == "__main__":
     runLox("1 == 0;")

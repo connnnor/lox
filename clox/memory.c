@@ -27,12 +27,18 @@ static void free_object(obj_t *object) {
     break;
   }
   case OBJ_NATIVE:
-    FREE(obj_native_t , object);
+    FREE(obj_native_t, object);
     break;
   case OBJ_STRING: {
     obj_string_t *string = (obj_string_t *)object;
     FREE_ARRAY(char, string->chars, string->length);
     FREE(obj_string_t, object);
+    break;
+  }
+  case OBJ_UPVALUE: {
+    obj_closure_t *closure = (obj_closure_t *)object;
+    FREE_ARRAY(obj_upvalue_t*, closure->upvalues, closure->upvalue_count);
+    FREE(obj_upvalue_t, object);
     break;
   }
   }
