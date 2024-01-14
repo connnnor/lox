@@ -17,6 +17,8 @@ void *reallocate(void *ptr, size_t old_size, size_t new_size) {
 static void free_object(obj_t *object) {
   switch (object->type) {
   case OBJ_CLOSURE: {
+    obj_closure_t *closure = (obj_closure_t *)object;
+    FREE_ARRAY(obj_upvalue_t*, closure->upvalues, closure->upvalue_count);
     FREE(OBJ_CLOSURE, object);
     break;
   }
@@ -35,12 +37,9 @@ static void free_object(obj_t *object) {
     FREE(obj_string_t, object);
     break;
   }
-  case OBJ_UPVALUE: {
-    obj_closure_t *closure = (obj_closure_t *)object;
-    FREE_ARRAY(obj_upvalue_t*, closure->upvalues, closure->upvalue_count);
+  case OBJ_UPVALUE:
     FREE(obj_upvalue_t, object);
     break;
-  }
   }
 }
 
