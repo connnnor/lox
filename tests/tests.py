@@ -459,7 +459,16 @@ def test_fun_to_str(lox_type):
         <fn square>
         """)
 
+@pytest.mark.classes
+def test_print_class(lox_type):
+    runDocTest(lox_type, """
+        >>> class Bagel {}
+        ... print Bagel;
+        <class Bagel>
+        """)
 
+
+@pytest.mark.classes
 def test_basic_class(lox_type):
     runDocTest(lox_type, """
         >>> class Bagel {}
@@ -478,6 +487,7 @@ def test_basic_class(lox_type):
         """)
 
 
+@pytest.mark.classes
 def test_class_method(lox_type):
     # normal
     runDocTest(lox_type, """
@@ -501,7 +511,7 @@ def test_class_method(lox_type):
         called function with argument
         """)
 
-
+@pytest.mark.classes
 def test_class_this(lox_type):
     runDocTest(lox_type, """
         >>> class Cake {
@@ -517,6 +527,7 @@ def test_class_this(lox_type):
         """)
 
 
+@pytest.mark.classes
 def test_class_closure(lox_type):
     runDocTest(lox_type, """
             >>> class Egotist {
@@ -530,6 +541,7 @@ def test_class_closure(lox_type):
             """)
 
 
+@pytest.mark.classes
 def test_class_initializer(lox_type):
     runDocTest(lox_type, """
         >>> class Foo {
@@ -542,7 +554,7 @@ def test_class_initializer(lox_type):
         bar
         """)
 
-
+@pytest.mark.classes
 def test_inheritance(lox_type):
     runDocTest(lox_type, """
         >>> class Doughnut {
@@ -562,6 +574,7 @@ def test_inheritance(lox_type):
         """)
 
 
+@pytest.mark.classes
 def test_inheritance_super(lox_type):
     runDocTest(lox_type, """
         >>> class A {
