@@ -194,14 +194,16 @@ static bool is_falsey(value_t value) {
 }
 
 static void concatenate() {
-  obj_string_t *b = AS_STRING(pop());
-  obj_string_t *a = AS_STRING(pop());
+  obj_string_t *b = AS_STRING(peek(0));
+  obj_string_t *a = AS_STRING(peek(1));
   int length = a->length + b->length;
   char *chars = ALLOCATE(char, length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';
 
+  pop();
+  pop();
   obj_string_t *result = take_string(chars, length);
   push(OBJ_VAL(result));
 }

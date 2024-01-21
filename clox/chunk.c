@@ -1,5 +1,6 @@
 #include "chunk.h"
 #include "memory.h"
+#include "vm.h"
 
 void init_chunk(chunk_t *ch) {
   ch->count = 0;
@@ -29,6 +30,8 @@ void write_chunk(chunk_t *ch, uint8_t byte, int line) {
 }
 
 int add_constant(chunk_t *ch, value_t value) {
+  push(value);
   write_value_arr(&ch->constants, value);
+  pop();
   return ch->constants.count - 1;
 }
