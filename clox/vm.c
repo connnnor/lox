@@ -79,6 +79,12 @@ static bool call_native(obj_native_t *native, int arg_count) {
 void init_vm() {
   reset_stack();
   vm.objects = NULL;
+  vm.bytes_allocated = 0;
+  vm.next_gc = 1024 * 1024;
+
+  vm.gray_count = 0;
+  vm.gray_capacity = 0;
+  vm.gray_stack = NULL;
 
   init_table(&vm.globals);
   init_table(&vm.strings);

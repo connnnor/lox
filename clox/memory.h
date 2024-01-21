@@ -20,5 +20,8 @@
   reallocate(pointer, sizeof(type) * (old_count), 0)
 
 void *reallocate(void *ptr, size_t old_size, size_t new_size);
+void mark_object(obj_t *object);
+void mark_value(value_t value);
+void collect_garbage();
 void free_objects();
 #endif //CLOX_MEMORY_H

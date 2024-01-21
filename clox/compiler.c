@@ -1,4 +1,5 @@
 #include "compiler.h"
+#include "memory.h"
 #include "chunk.h"
 #include "scanner.h"
 #include <stdio.h>
@@ -800,4 +801,13 @@ obj_function_t *compile(const char *source) {
 
   obj_function_t *function = end_compiler();
   return parser.had_error ? NULL : function;
+}
+
+
+void mark_compiler_roots() {
+  compiler_t *compiler = current;
+  while (compiler != NULL) {
+    mark_object((obj_t *)compiler->function);
+    compiler = compiler->enclosing;
+  }
 }

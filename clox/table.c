@@ -131,3 +131,20 @@ obj_string_t *table_find_string(table_t *table, const char *chars, int length, u
     index = (index + 1) % table->capacity;
   }
 }
+
+void table_remove_white(table_t *table) {
+  for (int i = 0; i < table->capacity; i++) {
+    entry_t *entry = &table->entries[i];
+    if (entry->key != NULL && !entry->key->obj.is_marked) {
+      table_delete(table, entry->key);
+    }
+  }
+}
+
+void mark_table(table_t *table) {
+  for (int i = 0; i < table->capacity; i++) {
+    entry_t *entry = &table->entries[i];
+    mark_object((obj_t *)entry->key);
+    mark_value(entry->value);
+  }
+}

@@ -22,5 +22,7 @@ bool table_get(table_t *table, obj_string_t *key, value_t *value);
 bool table_set(table_t *table, obj_string_t *key, value_t value);
 void table_add_all(table_t *from, table_t *to);
 obj_string_t *table_find_string(table_t *table, const char *chars, int length, uint32_t hash);
+void table_remove_white(table_t *table);
+void mark_table(table_t *table);
 
 #endif // CLOX_TABLE_H
