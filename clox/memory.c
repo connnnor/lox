@@ -140,6 +140,7 @@ static void mark_roots() {
   }
 
   mark_table(&vm.globals);
+  mark_compiler_roots();
 }
 
 static void trace_references() {
