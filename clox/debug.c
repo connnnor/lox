@@ -114,6 +114,8 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return simple_inst("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
     return simple_inst("OP_RETURN", offset);
+  case OP_CLASS:
+    return constant_inst("OP_CLASS", ch, offset);
   case OP_CLOSURE: {
     offset++;
     uint8_t constant = ch->code[offset++];
