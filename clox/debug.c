@@ -84,6 +84,10 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return byte_inst("OP_SET_UPVALUE", ch, offset);
   case OP_EQUAL:
     return simple_inst("OP_EQUAL", offset);
+  case OP_GET_PROPERTY:
+    return constant_inst("OP_GET_PROPERTY", ch, offset);
+  case OP_SET_PROPERTY:
+    return constant_inst("OP_SET_PROPERTY", ch, offset);
   case OP_GREATER:
     return simple_inst("OP_GREATER", offset);
   case OP_LESS:

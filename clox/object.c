@@ -53,6 +53,13 @@ obj_function_t *new_function() {
   return function;
 }
 
+obj_instance_t *new_instance(obj_class_t *klass) {
+  obj_instance_t *instance = ALLOCATE_OBJ(obj_instance_t, OBJ_INSTANCE);
+  instance->klass = klass;
+  init_table(&instance->fields);
+  return instance;
+}
+
 obj_native_t *new_native(native_fn_t *function, int arity) {
   obj_native_t *native = ALLOCATE_OBJ(obj_native_t, OBJ_NATIVE);
   native->function = function;
@@ -130,6 +137,9 @@ void print_object(value_t value) {
     break;
   case OBJ_FUNCTION:
     print_function(AS_FUNCTION(value));
+    break;
+  case OBJ_INSTANCE:
+    printf("<class %s instance>", AS_INSTANCE(value)->klass->name->chars);
     break;
   case OBJ_NATIVE:
     printf("<native fn>");
