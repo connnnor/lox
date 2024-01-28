@@ -465,6 +465,9 @@ def test_print_class(lox_type):
         >>> class Bagel {}
         ... print Bagel;
         <class Bagel>
+        >>> class Bagel {}
+        ... print Bagel();
+        <class Bagel instance>
         """)
 
 
