@@ -502,6 +502,17 @@ def test_class_method(lox_type):
         ... Bacon().eat();
         Crunch
         """)
+    # normal with params
+    runDocTest(lox_type, """
+        >>> class Scone {
+        ...   topping(first, second) {
+        ...     print "scone with " + first + " and " + second;
+        ...   }
+        ... }
+        ... var scone = Scone();
+        ... scone.topping("berries", "cream");
+        scone with berries and cream
+        """)
     # put method into object
     runDocTest(lox_type, """
         >>> class Box {}
@@ -512,6 +523,20 @@ def test_class_method(lox_type):
         ... box.function = notMethod;
         ... box.function("argument");
         called function with argument
+        """)
+    # separate instance and method
+    runDocTest(lox_type, """
+        >>> class Person {
+        ...   sayName() {
+        ...     print this.name;
+        ...   }
+        ... }
+        ...
+        ... var jane = Person();
+        ... jane.name = "Jane";
+        ... var method = jane.sayName;
+        ... method();
+        Jane
         """)
 
 @pytest.mark.classes
@@ -527,6 +552,20 @@ def test_class_this(lox_type):
         ... cake.flavor = "Chocolate";
         ... cake.taste();
         The Chocolate cake is delicious!
+        """)
+    # nested function declaration - this
+    runDocTest(lox_type, """
+        >>> class Nested {
+        ...   method() {
+        ...     fun function() {
+        ...       print this;
+        ...     }
+        ... 
+        ...     function();
+        ...   }
+        ... }
+        ... Nested().method();
+        <class Nested instance>
         """)
 
 
@@ -546,16 +585,53 @@ def test_class_closure(lox_type):
 
 @pytest.mark.classes
 def test_class_initializer(lox_type):
+    # no params
     runDocTest(lox_type, """
         >>> class Foo {
         ...   init() {
         ...     this.value = "bar";
+        ...     print "inside init";
         ...   }
         ... }
         ... var foo = Foo();
         ... print foo.value;
+        inside init
         bar
         """)
+    # params
+    runDocTest(lox_type, """
+        >>> class Brunch {
+        ...   init(food, drink) {
+        ...     this.food = food;
+        ...     this.drink = drink;
+        ...     print "inside init";
+        ...   }
+        ...   eat() {
+        ...     print "Eat " + this.food + " and drink " + this.drink;
+        ...   }
+        ... }
+        ... var brunch = Brunch("eggs", "coffee");
+        ... brunch.eat();
+        inside init
+        Eat eggs and drink coffee
+        """)
+
+@pytest.mark.classes
+def test_class_initializer_err(lox_type):
+    # calling init with params when it is not defined
+    runAndComparePattern(lox_type,"""
+        class Brunch {}
+        var brunch = Brunch("eggs", "coffee");
+        """, pattern("Expected 0 arguments but got 2."))
+    # returning value from initializer
+    runAndComparePattern(lox_type,"""
+        class Brunch {
+            init() {
+              return "just coffee";
+            }
+        }
+        """, error_pattern("Can't return a value from an initializer."))
+
 
 @pytest.mark.classes
 def test_inheritance(lox_type):
@@ -654,6 +730,17 @@ def test_return_err(lox_type):
     runAndComparePattern(lox_type, """
         return "at top level";
         """, error_pattern("Can't return from top-level code"))
+
+@pytest.mark.classes
+def test_this_err(lox_type):
+    # this outside class
+    runAndComparePattern(lox_type, """
+        print this;
+        """, error_pattern("Can't use 'this' outside of a class."))
+    # this outside class
+    runAndComparePattern(lox_type, """
+        fun notMethod() { print this; }
+        """, error_pattern("Can't use 'this' outside of a class."))
 
 @pytest.mark.func
 def test_native_clock(lox_type):

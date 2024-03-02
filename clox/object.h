@@ -8,22 +8,25 @@
 
 #define OBJ_TYPE(value)     (AS_OBJ(value)->type)
 
-#define IS_CLASS(value)     is_obj_type(value, OBJ_CLASS)
-#define IS_CLOSURE(value)   is_obj_type(value, OBJ_CLOSURE)
-#define IS_FUNCTION(value)  is_obj_type(value, OBJ_FUNCTION)
-#define IS_INSTANCE(value)  is_obj_type(value, OBJ_INSTANCE)
-#define IS_NATIVE(value)    is_obj_type(value, OBJ_NATIVE)
-#define IS_STRING(value)    is_obj_type(value, OBJ_STRING)
+#define IS_BOUND_METHOD(value)  is_obj_type(value, OBJ_BOUND_METHOD)
+#define IS_CLASS(value)         is_obj_type(value, OBJ_CLASS)
+#define IS_CLOSURE(value)       is_obj_type(value, OBJ_CLOSURE)
+#define IS_FUNCTION(value)      is_obj_type(value, OBJ_FUNCTION)
+#define IS_INSTANCE(value)      is_obj_type(value, OBJ_INSTANCE)
+#define IS_NATIVE(value)        is_obj_type(value, OBJ_NATIVE)
+#define IS_STRING(value)        is_obj_type(value, OBJ_STRING)
 
-#define AS_CLASS(value)     ((obj_class_t *) AS_OBJ(value))
-#define AS_CLOSURE(value)   ((obj_closure_t *) AS_OBJ(value))
-#define AS_FUNCTION(value)  ((obj_function_t*) AS_OBJ(value))
-#define AS_INSTANCE(value)  ((obj_instance_t*) AS_OBJ(value))
-#define AS_NATIVE(value)    ((obj_native_t*) AS_OBJ(value))
-#define AS_STRING(value)    ((obj_string_t*) AS_OBJ(value))
-#define AS_CSTRING(value)   (((obj_string_t*) AS_OBJ(value))->chars)
+#define AS_BOUND_METHOD(value)  ((obj_bound_method_t *) AS_OBJ(value))
+#define AS_CLASS(value)         ((obj_class_t *) AS_OBJ(value))
+#define AS_CLOSURE(value)       ((obj_closure_t *) AS_OBJ(value))
+#define AS_FUNCTION(value)      ((obj_function_t*) AS_OBJ(value))
+#define AS_INSTANCE(value)      ((obj_instance_t*) AS_OBJ(value))
+#define AS_NATIVE(value)        ((obj_native_t*) AS_OBJ(value))
+#define AS_STRING(value)        ((obj_string_t*) AS_OBJ(value))
+#define AS_CSTRING(value)       (((obj_string_t*) AS_OBJ(value))->chars)
 
 typedef enum {
+  OBJ_BOUND_METHOD,
   OBJ_CLASS,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
@@ -79,6 +82,7 @@ typedef struct obj_closure_t {
 typedef struct {
   obj_t obj;
   obj_string_t *name;
+  table_t methods;
 } obj_class_t;
 
 typedef struct {
@@ -87,6 +91,13 @@ typedef struct {
   table_t fields;
 } obj_instance_t;
 
+typedef struct {
+  obj_t obj;
+  value_t receiver;
+  obj_closure_t *method;
+} obj_bound_method_t;
+
+obj_bound_method_t *new_bound_method(value_t receiver, obj_closure_t *method);
 
 obj_class_t *new_class(obj_string_t *name);
 obj_closure_t *new_closure(obj_function_t *function);
