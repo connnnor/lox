@@ -1,3 +1,7 @@
+# TODO
+# TODO use link below to write custom explanations for failures
+# https://docs.pytest.org/en/7.1.x/how-to/assert.html
+
 import pexpect
 import tempfile
 import re
@@ -631,6 +635,25 @@ def test_class_initializer_err(lox_type):
             }
         }
         """, error_pattern("Can't return a value from an initializer."))
+
+# this test is the same as one of the items in test_class_method
+@pytest.mark.classes
+def test_class_invoke(lox_type):
+    runDocTest(lox_type, """
+        >>> class Oops {
+        ...   init() {
+        ...     fun f() {
+        ...       print "not a method";
+        ...     }
+        ... 
+        ...     this.field = f;
+        ...   }
+        ... }
+        ... 
+        ... var oops = Oops();
+        ... oops.field();
+        not a method
+        """)
 
 
 @pytest.mark.classes

@@ -21,6 +21,14 @@ static int constant_inst(const char *name, chunk_t  *ch, int offset) {
   return offset + 2;
 }
 
+static int invoke_inst(const char *name, chunk_t *ch, int offset) {
+  uint8_t constant = ch->code[offset + 1];
+  uint8_t arg_count = ch->code[offset + 2];
+  printf("%-16s (%d args) %4d '", name, arg_count, constant);
+  print_value(ch->constants.values[constant]);
+  printf("\n");
+  return offset + 3;
+}
 
 static int simple_inst(const char *name, int offset) {
   printf("%s\n", name);
@@ -114,6 +122,8 @@ int disassemble_inst(chunk_t *ch, int offset) {
     return jump_inst("OP_JUMP", -1, ch, offset);
   case OP_CALL:
     return byte_inst("OP_CALL", ch, offset);
+  case OP_INVOKE:
+    return invoke_inst("OP_INVOKE", ch, offset);
   case OP_CLOSE_UPVALUE:
     return simple_inst("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
